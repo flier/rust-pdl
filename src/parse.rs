@@ -144,7 +144,6 @@ fn type_(input: &str) -> IResult<&str, Type> {
                 indent,
                 optional("experimental"),
                 optional("deprecated"),
-                optional("optional"),
                 tag("type"),
                 char(' '),
                 take_while(|c: char| !c.is_whitespace()),
@@ -158,14 +157,13 @@ fn type_(input: &str) -> IResult<&str, Type> {
         )),
         |(
             description,
-            (_, experimental, deprecated, optional, _type, _, id, _, _extends, _, extends, _),
+            (_, experimental, deprecated, _type, _, id, _, _extends, _, extends, _),
             item,
         )| {
             let ty = Type {
                 description,
                 experimental,
                 deprecated,
-                optional,
                 id,
                 extends,
                 item,
@@ -441,7 +439,6 @@ experimental domain Accessibility
                                 description: vec!["Unique accessibility node identifier."],
                                 experimental: false,
                                 deprecated: false,
-                                optional: false,
                                 id: "AXNodeId",
                                 extends: Ty::String,
                                 item: None,
@@ -450,7 +447,6 @@ experimental domain Accessibility
                                 description: vec!["Enum of possible property types."],
                                 experimental: false,
                                 deprecated: false,
-                                optional: false,
                                 id: "AXValueType",
                                 extends: Ty::String,
                                 item: Some(Item::Enum(vec![
@@ -472,7 +468,6 @@ experimental domain Accessibility
                                 description: vec!["A single source for a computed AX property."],
                                 experimental: false,
                                 deprecated: false,
-                                optional: false,
                                 id: "AXValueSource",
                                 extends: Ty::Object,
                                 item: Some(Item::Properties(vec![
@@ -582,7 +577,6 @@ experimental domain Accessibility
                     description: vec![],
                     experimental: false,
                     deprecated: false,
-                    optional: false,
                     id: "AXProperty",
                     extends: Ty::Object,
                     item: Some(Item::Properties(vec![
@@ -630,7 +624,6 @@ experimental domain Accessibility
                     description: vec!["Enum of possible property sources."],
                     experimental: false,
                     deprecated: false,
-                    optional: false,
                     id: "AXValueSourceType",
                     extends: Ty::String,
                     item: Some(Item::Enum(vec![
@@ -680,7 +673,6 @@ experimental domain Accessibility
                     description: vec!["Pseudo element type."],
                     experimental: false,
                     deprecated: false,
-                    optional: false,
                     id: "PseudoType",
                     extends: Ty::String,
                     item: Some(Item::Enum(vec![

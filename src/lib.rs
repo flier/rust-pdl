@@ -48,7 +48,6 @@ pub struct Type<'a> {
     pub description: Description<'a>,
     pub experimental: bool,
     pub deprecated: bool,
-    pub optional: bool,
     pub id: &'a str,
     pub extends: Ty<'a>,
     pub item: Option<Item<'a>>,

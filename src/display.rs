@@ -2,20 +2,17 @@ use std::fmt::{self, Write};
 
 use crate::*;
 
-const INDENT: &str = "  ";
-
 struct Ident<W>(W);
 
 impl<W: fmt::Write> fmt::Write for Ident<W> {
     fn write_str(&mut self, s: &str) -> fmt::Result {
-        self.0.write_str(INDENT)?;
-        self.0.write_str(s)
+        self.0.write_str(&s.replace("\n", "\n  "))
     }
 }
 
 fn write_description<W: fmt::Write>(f: &mut W, description: &[&str]) -> fmt::Result {
     for comment in description {
-        write!(f, "# {}", comment)?;
+        writeln!(f, "# {}", comment)?;
     }
 
     Ok(())
@@ -23,9 +20,9 @@ fn write_description<W: fmt::Write>(f: &mut W, description: &[&str]) -> fmt::Res
 
 fn write_params<W: fmt::Write>(f: &mut W, name: &str, params: &[Param<'_>]) -> fmt::Result {
     if !params.is_empty() {
-        writeln!(f, "{}", name)?;
-
         let f = &mut Ident(f);
+
+        writeln!(f, "{}", name)?;
 
         for param in params {
             write_description(f, &param.description)?;
@@ -42,16 +39,15 @@ impl fmt::Display for Protocol<'_> {
         writeln!(
             f,
             r#"
-  version
-    major {}
-    minor {}
-
+version
+  major {}
+  minor {}
 "#,
             self.version.0, self.version.1
         )?;
 
         for domain in &self.domains {
-            writeln!(f, "{}", domain)?;
+            write!(f, "{}", domain)?;
         }
 
         Ok(())
@@ -61,6 +57,8 @@ impl fmt::Display for Protocol<'_> {
 impl fmt::Display for Domain<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write_description(f, &self.description)?;
+
+        let f = &mut Ident(f);
 
         writeln!(
             f,
@@ -74,11 +72,12 @@ impl fmt::Display for Domain<'_> {
             self.name,
         )?;
 
-        let f = &mut Ident(f);
-
         for depends in &self.dependencies {
-            writeln!(f, "{}", depends)?;
+            writeln!(f, "depends on {}", depends)?;
         }
+
+        writeln!(f, "")?;
+
         for ty in &self.types {
             writeln!(f, "{}", ty)?;
         }
@@ -97,24 +96,23 @@ impl fmt::Display for Type<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write_description(f, &self.description)?;
 
+        let f = &mut Ident(f);
+
         writeln!(
             f,
-            "{}{}{}{} extends {}",
+            "{}{}type {} extends {}",
             if self.experimental {
                 "experimental "
             } else {
                 ""
             },
             if self.deprecated { "deprecated " } else { "" },
-            if self.optional { "optional " } else { "" },
             self.id,
             self.extends
         )?;
 
-        let f = &mut Ident(f);
-
         if let Some(ref item) = self.item {
-            writeln!(f, "{}", item)?;
+            write!(f, "{}", item)?;
         }
 
         Ok(())
@@ -139,11 +137,11 @@ impl fmt::Display for Ty<'_> {
 
 impl fmt::Display for Item<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let f = &mut Ident(f);
+
         match self {
             Item::Enum(variants) => {
                 writeln!(f, "enum")?;
-
-                let f = &mut Ident(f);
 
                 for variant in variants {
                     write_description(f, &variant.description)?;
@@ -152,8 +150,6 @@ impl fmt::Display for Item<'_> {
             }
             Item::Properties(props) => {
                 writeln!(f, "properties")?;
-
-                let f = &mut Ident(f);
 
                 for prop in props {
                     write_description(f, &prop.description)?;
@@ -193,6 +189,9 @@ impl fmt::Display for Param<'_> {
 impl fmt::Display for Command<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write_description(f, &self.description)?;
+
+        let f = &mut Ident(f);
+
         writeln!(
             f,
             "{}{}command {}",
@@ -204,8 +203,6 @@ impl fmt::Display for Command<'_> {
             if self.deprecated { "deprecated " } else { "" },
             self.name
         )?;
-
-        let f = &mut Ident(f);
 
         if let Some(ref redirect) = self.redirect {
             writeln!(f, "{}", redirect)?;
@@ -221,6 +218,9 @@ impl fmt::Display for Command<'_> {
 impl fmt::Display for Event<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write_description(f, &self.description)?;
+
+        let f = &mut Ident(f);
+
         writeln!(
             f,
             "{}{}event {}",
