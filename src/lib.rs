@@ -1,13 +1,13 @@
-#[cfg(feature = "to_json")]
-use serde::Serialize;
+#[cfg(feature = "display")]
+mod display;
 
 #[cfg(feature = "parse")]
 mod parse;
 #[cfg(feature = "parse")]
 pub use parse::parse;
 
-#[cfg(feature = "to_string")]
-mod display;
+#[cfg(feature = "to_json")]
+use serde::Serialize;
 
 pub type Description<'a> = Vec<&'a str>;
 
@@ -19,6 +19,7 @@ pub struct Protocol<'a> {
     pub domains: Vec<Domain<'a>>,
 }
 
+#[cfg(feature = "to_json")]
 impl Protocol<'_> {
     pub fn to_json(&self) -> serde_json::Result<String> {
         serde_json::to_string(self)
