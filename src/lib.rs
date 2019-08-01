@@ -14,14 +14,14 @@ pub type Description<'a> = Vec<&'a str>;
 
 #[derive(Debug, PartialEq)]
 pub struct Protocol<'a> {
-    description: Description<'a>,
-    version: (usize, usize),
+    pub description: Description<'a>,
+    pub version: (usize, usize),
 }
 
 fn protocol(input: &str) -> IResult<&str, Protocol> {
     map(
-        tuple((description, version, multispace1)),
-        |(description, version, _)| Protocol {
+        tuple((description, multispace1, version, multispace1)),
+        |(description, _, version, _)| Protocol {
             description,
             version,
         },
@@ -29,16 +29,18 @@ fn protocol(input: &str) -> IResult<&str, Protocol> {
 }
 
 fn description(input: &str) -> IResult<&str, Description> {
-    map(
-        many0(alt((map(comment, Some), map(multispace1, |_| None)))),
-        |lines| lines.into_iter().flatten().collect::<Vec<_>>(),
-    )(input)
+    many0(comment)(input)
 }
 
 fn comment(input: &str) -> IResult<&str, &str> {
     map(
-        preceded(pair(multispace0, char('#')), take_until("\n")),
-        str::trim,
+        tuple((
+            multispace0,
+            char('#'),
+            map(take_until("\n"), str::trim),
+            char('\n'),
+        )),
+        |(_, _, s, _)| s,
     )(input)
 }
 
@@ -61,6 +63,7 @@ fn version(input: &str) -> IResult<&str, (usize, usize)> {
 
 #[derive(Debug, PartialEq)]
 pub struct Domain<'a> {
+    pub description: Description<'a>,
     pub experimental: bool,
     pub deprecated: bool,
     pub name: &'a str,
@@ -73,6 +76,7 @@ pub struct Domain<'a> {
 fn domain(input: &str) -> IResult<&str, Domain> {
     map(
         tuple((
+            description,
             optional("experimental"),
             optional("deprecated"),
             tag("domain"),
@@ -83,7 +87,19 @@ fn domain(input: &str) -> IResult<&str, Domain> {
             many0(command),
             many0(event),
         )),
-        |(experimental, deprecated, _, _, name, dependencies, types, commands, events)| Domain {
+        |(
+            description,
+            experimental,
+            deprecated,
+            _,
+            _,
+            name,
+            dependencies,
+            types,
+            commands,
+            events,
+        )| Domain {
+            description,
             experimental,
             deprecated,
             name,
@@ -109,6 +125,7 @@ fn depends_on(input: &str) -> IResult<&str, &str> {
 
 #[derive(Debug, PartialEq)]
 pub struct Type<'a> {
+    pub description: Description<'a>,
     pub experimental: bool,
     pub deprecated: bool,
     pub optional: bool,
@@ -120,6 +137,7 @@ pub struct Type<'a> {
 fn type_(input: &str) -> IResult<&str, Type> {
     map(
         tuple((
+            description,
             multispace1,
             optional("experimental"),
             optional("deprecated"),
@@ -135,6 +153,7 @@ fn type_(input: &str) -> IResult<&str, Type> {
             many0(item),
         )),
         |(
+            description,
             _,
             experimental,
             deprecated,
@@ -149,6 +168,7 @@ fn type_(input: &str) -> IResult<&str, Type> {
             _,
             items,
         )| Type {
+            description,
             experimental,
             deprecated,
             optional,
@@ -238,8 +258,8 @@ impl<'a> Variant<'a> {
 
 fn variant(input: &str) -> IResult<&str, Variant> {
     map(
-        tuple((description, take_until("\n"))),
-        |(description, name)| Variant { description, name },
+        tuple((description, multispace1, take_until("\n"))),
+        |(description, _, name)| Variant { description, name },
     )(input)
 }
 
@@ -257,6 +277,7 @@ fn param(input: &str) -> IResult<&str, Param> {
     let (input, mut param) = map(
         tuple((
             description,
+            multispace1,
             optional("experimental"),
             optional("deprecated"),
             optional("optional"),
@@ -264,7 +285,7 @@ fn param(input: &str) -> IResult<&str, Param> {
             space1,
             take_while(|c: char| !c.is_whitespace()),
         )),
-        |(description, experimental, optional, deprecated, ty, _, name)| Param {
+        |(description, _, experimental, optional, deprecated, ty, _, name)| Param {
             experimental,
             optional,
             deprecated,
@@ -287,6 +308,7 @@ fn param(input: &str) -> IResult<&str, Param> {
 
 #[derive(Debug, PartialEq)]
 pub struct Command<'a> {
+    pub description: Description<'a>,
     pub experimental: bool,
     pub deprecated: bool,
     pub name: &'a str,
@@ -295,6 +317,7 @@ pub struct Command<'a> {
 fn command(input: &str) -> IResult<&str, Command> {
     map(
         tuple((
+            description,
             multispace1,
             optional("experimental"),
             optional("deprecated"),
@@ -302,7 +325,8 @@ fn command(input: &str) -> IResult<&str, Command> {
             space1,
             take_until("\n"),
         )),
-        |(_, experimental, deprecated, _, _, name)| Command {
+        |(description, _, experimental, deprecated, _, _, name)| Command {
+            description,
             experimental,
             deprecated,
             name,
@@ -312,6 +336,7 @@ fn command(input: &str) -> IResult<&str, Command> {
 
 #[derive(Debug, PartialEq)]
 pub struct Event<'a> {
+    pub description: Description<'a>,
     pub experimental: bool,
     pub deprecated: bool,
     pub name: &'a str,
@@ -320,6 +345,7 @@ pub struct Event<'a> {
 fn event(input: &str) -> IResult<&str, Event> {
     map(
         tuple((
+            description,
             multispace1,
             optional("experimental"),
             optional("deprecated"),
@@ -327,7 +353,8 @@ fn event(input: &str) -> IResult<&str, Event> {
             space1,
             take_until("\n"),
         )),
-        |(_, experimental, deprecated, _, _, name)| Event {
+        |(description, _, experimental, deprecated, _, _, name)| Event {
+            description,
             experimental,
             deprecated,
             name,
@@ -383,7 +410,7 @@ version
         assert_eq!(
             comment("# Copyright 2017 The Chromium Authors. All rights reserved.\n").unwrap(),
             (
-                "\n",
+                "",
                 "Copyright 2017 The Chromium Authors. All rights reserved."
             )
         )
@@ -410,6 +437,7 @@ version
             (
                 "\n",
                 Domain {
+                    description: vec![],
                     experimental: true,
                     deprecated: false,
                     name: "Accessibility",
@@ -434,6 +462,7 @@ version
             (
                 "",
                 Type {
+                    description: vec![],
                     experimental: false,
                     deprecated: false,
                     optional: false,
@@ -539,6 +568,7 @@ version
             (
                 "\n",
                 Command {
+                    description: vec![],
                     experimental: false,
                     deprecated: false,
                     name: "disable"
@@ -554,6 +584,7 @@ version
             (
                 "\n",
                 Event {
+                    description: vec![],
                     experimental: false,
                     deprecated: false,
                     name: "animationCanceled"
