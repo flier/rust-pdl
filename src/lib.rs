@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_until, take_while},
@@ -8,7 +10,10 @@ use nom::{
     sequence::{pair, preceded, tuple},
     AsChar, Compare, IResult, InputLength, InputTake, InputTakeAtPosition,
 };
-use std::str::FromStr;
+
+pub fn parse(input: &str) -> IResult<&str, Protocol> {
+    protocol(input)
+}
 
 pub type Description<'a> = Vec<&'a str>;
 
@@ -16,14 +21,16 @@ pub type Description<'a> = Vec<&'a str>;
 pub struct Protocol<'a> {
     pub description: Description<'a>,
     pub version: (usize, usize),
+    pub domains: Vec<Domain<'a>>,
 }
 
 fn protocol(input: &str) -> IResult<&str, Protocol> {
     map(
-        tuple((description, multispace1, version, multispace1)),
-        |(description, _, version, _)| Protocol {
+        tuple((description, multispace1, version, many1(domain))),
+        |(description, _, version, domains)| Protocol {
             description,
             version,
+            domains,
         },
     )(input)
 }
@@ -77,6 +84,7 @@ fn domain(input: &str) -> IResult<&str, Domain> {
     map(
         tuple((
             description,
+            multispace0,
             optional("experimental"),
             optional("deprecated"),
             tag("domain"),
@@ -89,6 +97,7 @@ fn domain(input: &str) -> IResult<&str, Domain> {
         )),
         |(
             description,
+            _,
             experimental,
             deprecated,
             _,
@@ -131,7 +140,7 @@ pub struct Type<'a> {
     pub optional: bool,
     pub id: &'a str,
     pub extends: Ty<'a>,
-    pub items: Vec<Item<'a>>,
+    pub item: Option<Item<'a>>,
 }
 
 fn type_(input: &str) -> IResult<&str, Type> {
@@ -149,8 +158,7 @@ fn type_(input: &str) -> IResult<&str, Type> {
             tag("extends"),
             space1,
             ty,
-            multispace1,
-            many0(item),
+            opt(item),
         )),
         |(
             description,
@@ -165,8 +173,7 @@ fn type_(input: &str) -> IResult<&str, Type> {
             _extends,
             _,
             extends,
-            _,
-            items,
+            item,
         )| Type {
             description,
             experimental,
@@ -174,8 +181,24 @@ fn type_(input: &str) -> IResult<&str, Type> {
             optional,
             id,
             extends,
-            items,
+            item,
         },
+    )(input)
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Item<'a> {
+    Enum(Vec<Variant<'a>>),
+    Properties(Vec<Param<'a>>),
+}
+
+fn item(input: &str) -> IResult<&str, Item> {
+    preceded(
+        multispace0,
+        alt((
+            map(preceded(tag("enum"), many1(variant)), Item::Enum),
+            map(preceded(tag("properties"), many1(param)), Item::Properties),
+        )),
     )(input)
 }
 
@@ -218,26 +241,6 @@ fn ty(input: &str) -> IResult<&str, Ty> {
             take_while(|c: char| !c.is_whitespace()),
         )),
         |(is_array, ty)| Ty::new(ty, is_array),
-    )(input)
-}
-
-#[derive(Debug, PartialEq)]
-pub enum Item<'a> {
-    Enum(Vec<Variant<'a>>),
-    Parameters(Vec<Param<'a>>),
-    Returns(Vec<Param<'a>>),
-    Properties(Vec<Param<'a>>),
-}
-
-fn item(input: &str) -> IResult<&str, Item> {
-    preceded(
-        multispace0,
-        alt((
-            map(preceded(tag("enum"), many1(variant)), Item::Enum),
-            map(preceded(tag("parameters"), many1(param)), Item::Parameters),
-            map(preceded(tag("returns"), many1(param)), Item::Returns),
-            map(preceded(tag("properties"), many1(param)), Item::Properties),
-        )),
     )(input)
 }
 
@@ -312,6 +315,9 @@ pub struct Command<'a> {
     pub experimental: bool,
     pub deprecated: bool,
     pub name: &'a str,
+    pub redirect: Option<Redirect<'a>>,
+    pub parameters: Vec<Param<'a>>,
+    pub returns: Vec<Param<'a>>,
 }
 
 fn command(input: &str) -> IResult<&str, Command> {
@@ -324,12 +330,20 @@ fn command(input: &str) -> IResult<&str, Command> {
             tag("command"),
             space1,
             take_until("\n"),
+            opt(redirect),
+            opt(preceded(pair(multispace1, tag("parameters")), many1(param))),
+            opt(preceded(pair(multispace1, tag("returns")), many1(param))),
         )),
-        |(description, _, experimental, deprecated, _, _, name)| Command {
-            description,
-            experimental,
-            deprecated,
-            name,
+        |(description, _, experimental, deprecated, _, _, name, redirect, parameters, returns)| {
+            Command {
+                description,
+                experimental,
+                deprecated,
+                name,
+                redirect,
+                parameters: parameters.unwrap_or_default(),
+                returns: returns.unwrap_or_default(),
+            }
         },
     )(input)
 }
@@ -340,6 +354,7 @@ pub struct Event<'a> {
     pub experimental: bool,
     pub deprecated: bool,
     pub name: &'a str,
+    pub parameters: Vec<Param<'a>>,
 }
 
 fn event(input: &str) -> IResult<&str, Event> {
@@ -352,13 +367,34 @@ fn event(input: &str) -> IResult<&str, Event> {
             tag("event"),
             space1,
             take_until("\n"),
+            opt(preceded(pair(multispace1, tag("parameters")), many1(param))),
         )),
-        |(description, _, experimental, deprecated, _, _, name)| Event {
+        |(description, _, experimental, deprecated, _, _, name, parameters)| Event {
             description,
             experimental,
             deprecated,
             name,
+            parameters: parameters.unwrap_or_default(),
         },
+    )(input)
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Redirect<'a> {
+    pub description: Description<'a>,
+    pub to: &'a str,
+}
+
+fn redirect(input: &str) -> IResult<&str, Redirect> {
+    map(
+        tuple((
+            description,
+            multispace1,
+            tag("redirect"),
+            space1,
+            take_while(|c: char| !c.is_whitespace()),
+        )),
+        |(description, _, _redirect, _, to)| Redirect { description, to },
     )(input)
 }
 
@@ -388,11 +424,17 @@ mod tests {
 version
   major 1
   minor 3
+
+experimental domain Accessibility
+  depends on DOM
+
+  # Unique accessibility node identifier.
+  type AXNodeId extends string
 "#
             )
             .unwrap(),
             (
-                "",
+                "\n",
                 Protocol {
                     description: vec![
                         "Copyright 2017 The Chromium Authors. All rights reserved.",
@@ -400,6 +442,24 @@ version
                         "found in the LICENSE file."
                     ],
                     version: (1, 3),
+                    domains: vec![Domain {
+                        description: vec![],
+                        experimental: true,
+                        deprecated: false,
+                        name: "Accessibility",
+                        dependencies: vec!["DOM"],
+                        types: vec![Type {
+                            description: vec!["Unique accessibility node identifier."],
+                            experimental: false,
+                            deprecated: false,
+                            optional: false,
+                            id: "AXNodeId",
+                            extends: Ty::String,
+                            item: None
+                        }],
+                        commands: vec![],
+                        events: vec![]
+                    }],
                 }
             )
         )
@@ -458,17 +518,44 @@ version
     #[test]
     fn parse_type() {
         assert_eq!(
-            type_("  type AXNodeId extends string\n").unwrap(),
+            type_(
+                r#"
+  type AXProperty extends object
+    properties
+      # The name of this property.
+      AXPropertyName name
+      # The value of this property.
+      AXValue value
+"#
+            )
+            .unwrap(),
             (
-                "",
+                "\n",
                 Type {
                     description: vec![],
                     experimental: false,
                     deprecated: false,
                     optional: false,
-                    id: "AXNodeId",
-                    extends: Ty::String,
-                    items: vec![]
+                    id: "AXProperty",
+                    extends: Ty::Object,
+                    item: Some(Item::Properties(vec![
+                        Param {
+                            description: vec!["The name of this property."],
+                            experimental: false,
+                            deprecated: false,
+                            optional: false,
+                            ty: Ty::Ref("AXPropertyName"),
+                            name: "name"
+                        },
+                        Param {
+                            description: vec!["The value of this property."],
+                            experimental: false,
+                            deprecated: false,
+                            optional: false,
+                            ty: Ty::Ref("AXValue"),
+                            name: "value"
+                        }
+                    ]))
                 }
             )
         )
@@ -477,22 +564,56 @@ version
     #[test]
     fn parse_enum() {
         assert_eq!(
-            item(
+            type_(
                 r#"
+  # Enum of possible property sources.
+  type AXValueSourceType extends string
     enum
       attribute
       implicit
       style
+      contents
+      placeholder
+      relatedElement
 "#
             )
             .unwrap(),
             (
                 "\n",
-                Item::Enum(vec![
-                    Variant::new("attribute"),
-                    Variant::new("implicit"),
-                    Variant::new("style")
-                ])
+                Type {
+                    description: vec!["Enum of possible property sources."],
+                    experimental: false,
+                    deprecated: false,
+                    optional: false,
+                    id: "AXValueSourceType",
+                    extends: Ty::String,
+                    item: Some(Item::Enum(vec![
+                        Variant {
+                            description: vec![],
+                            name: "attribute"
+                        },
+                        Variant {
+                            description: vec![],
+                            name: "implicit"
+                        },
+                        Variant {
+                            description: vec![],
+                            name: "style"
+                        },
+                        Variant {
+                            description: vec![],
+                            name: "contents"
+                        },
+                        Variant {
+                            description: vec![],
+                            name: "placeholder"
+                        },
+                        Variant {
+                            description: vec![],
+                            name: "relatedElement"
+                        }
+                    ]))
+                }
             )
         )
     }
@@ -564,14 +685,69 @@ version
     #[test]
     fn parse_command() {
         assert_eq!(
-            command("  command disable\n").unwrap(),
+            command(
+                r#"
+  # Returns the DER-encoded certificate.
+  experimental command getCertificate
+    parameters
+      # Origin to get certificate for.
+      string origin
+    returns
+      array of string tableNames
+"#
+            )
+            .unwrap(),
             (
                 "\n",
                 Command {
-                    description: vec![],
+                    description: vec!["Returns the DER-encoded certificate."],
+                    experimental: true,
+                    deprecated: false,
+                    name: "getCertificate",
+                    redirect: None,
+                    parameters: vec![Param {
+                        description: vec!["Origin to get certificate for."],
+                        experimental: false,
+                        deprecated: false,
+                        optional: false,
+                        ty: Ty::String,
+                        name: "origin"
+                    }],
+                    returns: vec![Param {
+                        description: vec![],
+                        experimental: false,
+                        deprecated: false,
+                        optional: false,
+                        ty: Ty::ArrayOf(Box::new(Ty::String)),
+                        name: "tableNames"
+                    }],
+                }
+            )
+        );
+
+        assert_eq!(
+            command(
+                r#"
+  # Hides any highlight.
+  command hideHighlight
+    # Use 'Overlay.hideHighlight' instead
+    redirect Overlay
+"#
+            )
+            .unwrap(),
+            (
+                "\n",
+                Command {
+                    description: vec!["Hides any highlight."],
                     experimental: false,
                     deprecated: false,
-                    name: "disable"
+                    name: "hideHighlight",
+                    redirect: Some(Redirect {
+                        description: vec!["Use 'Overlay.hideHighlight' instead"],
+                        to: "Overlay"
+                    }),
+                    parameters: vec![],
+                    returns: vec![],
                 }
             )
         );
@@ -580,16 +756,56 @@ version
     #[test]
     fn parse_event() {
         assert_eq!(
-            event("  event animationCanceled\n").unwrap(),
+            event(r#"
+  # Notification sent after the virtual time has advanced.
+  experimental event virtualTimeAdvanced
+    parameters
+      # The amount of virtual time that has elapsed in milliseconds since virtual time was first
+      # enabled.
+      number virtualTimeElapsed
+"#).unwrap(),
             (
                 "\n",
                 Event {
-                    description: vec![],
-                    experimental: false,
+                    description: vec!["Notification sent after the virtual time has advanced."],
+                    experimental: true,
                     deprecated: false,
-                    name: "animationCanceled"
+                    name: "virtualTimeAdvanced",
+                    parameters: vec![
+                        Param {
+                            description: vec![
+                                "The amount of virtual time that has elapsed in milliseconds since virtual time was first",
+                                "enabled."
+                            ],
+                            experimental: false,
+                            deprecated: false,
+                            optional: false,
+                            ty: Ty::Number,
+                            name: "virtualTimeElapsed"
+                        },
+                    ],
                 }
             )
         );
+    }
+
+    #[test]
+    fn parse_redirect() {
+        assert_eq!(
+            redirect(
+                r#"
+    # Use 'Emulation.clearGeolocationOverride' instead
+    redirect Emulation
+"#
+            )
+            .unwrap(),
+            (
+                "\n",
+                Redirect {
+                    description: vec!["Use 'Emulation.clearGeolocationOverride' instead"],
+                    to: "Emulation"
+                }
+            )
+        )
     }
 }
