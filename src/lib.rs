@@ -1,3 +1,6 @@
+#[cfg_attr(feature = "parse", macro_use)]
+extern crate log;
+
 #[cfg(feature = "display")]
 mod display;
 

@@ -13,7 +13,7 @@ impl<W: fmt::Write> fmt::Write for Ident<W> {
     }
 }
 
-fn write_description<W: fmt::Write>(f: &mut W, description: &Description) -> fmt::Result {
+fn write_description<W: fmt::Write>(f: &mut W, description: &[&str]) -> fmt::Result {
     for comment in description {
         write!(f, "# {}", comment)?;
     }

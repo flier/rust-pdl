@@ -1,14 +1,15 @@
+use std::ops::RangeFrom;
 use std::str::FromStr;
 
 use nom::{
     branch::alt,
-    bytes::complete::{tag, take_until, take_while},
-    character::complete::{char, multispace0, multispace1, space1},
-    combinator::{map, map_res, opt, verify},
+    bytes::complete::{is_a, tag, take_until, take_while},
+    character::complete::char,
+    combinator::{map, map_res, opt, recognize, verify},
     error::ParseError,
     multi::{many0, many1},
     sequence::{pair, preceded, tuple},
-    AsChar, Compare, IResult, InputLength, InputTake, InputTakeAtPosition,
+    AsChar, Compare, IResult, InputIter, InputLength, InputTake, InputTakeAtPosition, Slice,
 };
 
 use crate::*;
@@ -20,13 +21,30 @@ pub fn parse(input: &str) -> IResult<&str, Protocol> {
 
 fn protocol(input: &str) -> IResult<&str, Protocol> {
     map(
-        tuple((description, multispace1, version, many1(domain))),
+        tuple((
+            description,
+            empty_lines,
+            version,
+            many1(preceded(empty_lines, domain)),
+        )),
         |(description, _, version, domains)| Protocol {
             description,
             version,
             domains,
         },
     )(input)
+}
+
+fn indent(input: &str) -> IResult<&str, &str> {
+    recognize(many1(is_a(" \t")))(input)
+}
+
+fn empty_lines(input: &str) -> IResult<&str, &str> {
+    recognize(many0(eol))(input)
+}
+
+fn eol(input: &str) -> IResult<&str, char> {
+    char('\n')(input)
 }
 
 fn description(input: &str) -> IResult<&str, Description> {
@@ -36,29 +54,35 @@ fn description(input: &str) -> IResult<&str, Description> {
 fn comment(input: &str) -> IResult<&str, &str> {
     map(
         tuple((
-            multispace0,
+            opt(indent),
             char('#'),
             map(take_until("\n"), str::trim),
-            char('\n'),
+            eol,
         )),
-        |(_, _, s, _)| s,
+        |(_, _, s, _eol)| s,
     )(input)
 }
 
 fn version(input: &str) -> IResult<&str, (usize, usize)> {
     map(
         tuple((
-            tag("version"),
-            multispace1,
-            tag("major"),
-            space1,
-            map_res(take_while(|c: char| c.is_ascii_digit()), FromStr::from_str),
-            multispace1,
-            tag("minor"),
-            space1,
-            map_res(take_while(|c: char| c.is_ascii_digit()), FromStr::from_str),
+            tuple((tag("version"), eol)),
+            tuple((
+                indent,
+                tag("major"),
+                char(' '),
+                map_res(take_while(|c: char| c.is_ascii_digit()), FromStr::from_str),
+                eol,
+            )),
+            tuple((
+                indent,
+                tag("minor"),
+                char(' '),
+                map_res(take_while(|c: char| c.is_ascii_digit()), FromStr::from_str),
+                eol,
+            )),
         )),
-        |(_version, _, _major, _, major, _, _minor, _, minor)| (major, minor),
+        |((_version, _), (_, _major, _, major, _), (_, _minor, _, minor, _))| (major, minor),
     )(input)
 }
 
@@ -66,25 +90,22 @@ fn domain(input: &str) -> IResult<&str, Domain> {
     map(
         tuple((
             description,
-            multispace0,
-            optional("experimental"),
-            optional("deprecated"),
-            tag("domain"),
-            space1,
-            take_until("\n"),
+            tuple((
+                optional("experimental"),
+                optional("deprecated"),
+                tag("domain"),
+                char(' '),
+                take_until("\n"),
+                eol,
+            )),
             many0(depends_on),
-            many0(type_),
-            many0(command),
-            many0(event),
+            many0(preceded(empty_lines, type_)),
+            many0(preceded(empty_lines, command)),
+            many0(preceded(empty_lines, event)),
         )),
         |(
             description,
-            _,
-            experimental,
-            deprecated,
-            _,
-            _,
-            name,
+            (experimental, deprecated, _domain, _, name, _eol),
             dependencies,
             types,
             commands,
@@ -105,12 +126,13 @@ fn domain(input: &str) -> IResult<&str, Domain> {
 fn depends_on(input: &str) -> IResult<&str, &str> {
     map(
         tuple((
-            multispace1,
+            indent,
             tag("depends on"),
-            space1,
+            char(' '),
             take_while(|c: char| !c.is_whitespace()),
+            eol,
         )),
-        |(_, _, _, name)| name,
+        |(_, _depends_on, _, name, _eol)| name,
     )(input)
 }
 
@@ -118,41 +140,40 @@ fn type_(input: &str) -> IResult<&str, Type> {
     map(
         tuple((
             description,
-            multispace1,
-            optional("experimental"),
-            optional("deprecated"),
-            optional("optional"),
-            tag("type"),
-            space1,
-            take_while(|c: char| !c.is_whitespace()),
-            space1,
-            tag("extends"),
-            space1,
-            ty,
+            tuple((
+                indent,
+                optional("experimental"),
+                optional("deprecated"),
+                optional("optional"),
+                tag("type"),
+                char(' '),
+                take_while(|c: char| !c.is_whitespace()),
+                char(' '),
+                tag("extends"),
+                char(' '),
+                ty,
+                eol,
+            )),
             opt(item),
         )),
         |(
             description,
-            _,
-            experimental,
-            deprecated,
-            optional,
-            _type,
-            _,
-            id,
-            _,
-            _extends,
-            _,
-            extends,
+            (_, experimental, deprecated, optional, _type, _, id, _, _extends, _, extends, _),
             item,
-        )| Type {
-            description,
-            experimental,
-            deprecated,
-            optional,
-            id,
-            extends,
-            item,
+        )| {
+            let ty = Type {
+                description,
+                experimental,
+                deprecated,
+                optional,
+                id,
+                extends,
+                item,
+            };
+
+            trace!("{:?}", ty);
+
+            ty
         },
     )(input)
 }
@@ -168,25 +189,37 @@ fn ty(input: &str) -> IResult<&str, Ty> {
 }
 
 fn item(input: &str) -> IResult<&str, Item> {
-    preceded(
-        multispace0,
-        alt((
-            map(preceded(tag("enum"), many1(variant)), Item::Enum),
-            map(preceded(tag("properties"), many1(param)), Item::Properties),
-        )),
-    )(input)
+    alt((
+        map(
+            preceded(tuple((indent, tag("enum"), eol)), many1(variant)),
+            Item::Enum,
+        ),
+        map(
+            preceded(tuple((indent, tag("properties"), eol)), many1(param)),
+            Item::Properties,
+        ),
+    ))(input)
 }
 
 fn variant(input: &str) -> IResult<&str, Variant> {
     map(
         tuple((
             description,
-            multispace1,
-            verify(take_while(|c: char| !c.is_whitespace()), |s: &str| {
-                !s.is_empty()
-            }),
+            tuple((
+                indent,
+                verify(take_while(|c: char| !c.is_whitespace()), |s: &str| {
+                    !s.is_empty()
+                }),
+                eol,
+            )),
         )),
-        |(description, _, name)| Variant { description, name },
+        |(description, (_, name, _))| {
+            let variant = Variant { description, name };
+
+            trace!("{:?}", variant);
+
+            variant
+        },
     )(input)
 }
 
@@ -194,28 +227,39 @@ fn param(input: &str) -> IResult<&str, Param> {
     let (input, mut param) = map(
         tuple((
             description,
-            multispace1,
-            optional("experimental"),
-            optional("deprecated"),
-            optional("optional"),
-            ty,
-            space1,
-            verify(take_while(|c: char| !c.is_whitespace()), |s: &str| {
-                !s.is_empty()
-            }),
+            tuple((
+                indent,
+                optional("experimental"),
+                optional("deprecated"),
+                optional("optional"),
+                ty,
+                char(' '),
+                verify(take_while(|c: char| !c.is_whitespace()), |s: &str| {
+                    !s.is_empty()
+                }),
+                eol,
+            )),
         )),
-        |(description, _, experimental, optional, deprecated, ty, _, name)| Param {
-            experimental,
-            optional,
-            deprecated,
-            ty,
-            description,
-            name,
+        |(description, (_, experimental, deprecated, optional, ty, _, name, _))| {
+            let param = Param {
+                experimental,
+                deprecated,
+                optional,
+                ty,
+                description,
+                name,
+            };
+
+            trace!("{:?}", param);
+
+            param
         },
     )(input)?;
 
     if let Ty::Enum(ref mut variants) = param.ty {
         let (input, mut vars) = many1(variant)(input)?;
+
+        trace!("{:?}", vars);
 
         variants.append(&mut vars);
 
@@ -229,18 +273,30 @@ fn command(input: &str) -> IResult<&str, Command> {
     map(
         tuple((
             description,
-            multispace1,
-            optional("experimental"),
-            optional("deprecated"),
-            tag("command"),
-            space1,
-            take_until("\n"),
+            tuple((
+                indent,
+                optional("experimental"),
+                optional("deprecated"),
+                tag("command"),
+                char(' '),
+                take_until("\n"),
+                eol,
+            )),
             opt(redirect),
-            opt(preceded(pair(multispace1, tag("parameters")), many1(param))),
-            opt(preceded(pair(multispace1, tag("returns")), many1(param))),
+            opt(preceded(
+                tuple((indent, tag("parameters"), eol)),
+                many1(param),
+            )),
+            opt(preceded(tuple((indent, tag("returns"), eol)), many1(param))),
         )),
-        |(description, _, experimental, deprecated, _, _, name, redirect, parameters, returns)| {
-            Command {
+        |(
+            description,
+            (_, experimental, deprecated, _, _, name, _),
+            redirect,
+            parameters,
+            returns,
+        )| {
+            let command = Command {
                 description,
                 experimental,
                 deprecated,
@@ -248,7 +304,11 @@ fn command(input: &str) -> IResult<&str, Command> {
                 redirect,
                 parameters: parameters.unwrap_or_default(),
                 returns: returns.unwrap_or_default(),
-            }
+            };
+
+            trace!("{:?}", command);
+
+            command
         },
     )(input)
 }
@@ -257,20 +317,32 @@ fn event(input: &str) -> IResult<&str, Event> {
     map(
         tuple((
             description,
-            multispace1,
-            optional("experimental"),
-            optional("deprecated"),
-            tag("event"),
-            space1,
-            take_until("\n"),
-            opt(preceded(pair(multispace1, tag("parameters")), many1(param))),
+            tuple((
+                indent,
+                optional("experimental"),
+                optional("deprecated"),
+                tag("event"),
+                char(' '),
+                take_until("\n"),
+                eol,
+            )),
+            opt(preceded(
+                tuple((indent, tag("parameters"), eol)),
+                many1(param),
+            )),
         )),
-        |(description, _, experimental, deprecated, _, _, name, parameters)| Event {
-            description,
-            experimental,
-            deprecated,
-            name,
-            parameters: parameters.unwrap_or_default(),
+        |(description, (_, experimental, deprecated, _, _, name, _), parameters)| {
+            let event = Event {
+                description,
+                experimental,
+                deprecated,
+                name,
+                parameters: parameters.unwrap_or_default(),
+            };
+
+            trace!("{:?}", event);
+
+            event
         },
     )(input)
 }
@@ -279,23 +351,33 @@ fn redirect(input: &str) -> IResult<&str, Redirect> {
     map(
         tuple((
             description,
-            multispace1,
-            tag("redirect"),
-            space1,
-            take_while(|c: char| !c.is_whitespace()),
+            tuple((
+                indent,
+                tag("redirect"),
+                char(' '),
+                take_while(|c: char| !c.is_whitespace()),
+                eol,
+            )),
         )),
-        |(description, _, _redirect, _, to)| Redirect { description, to },
+        |(description, (_, _redirect, _, to, _))| {
+            let redirect = Redirect { description, to };
+
+            trace!("{:?}", redirect);
+
+            redirect
+        },
     )(input)
 }
 
 fn optional<T, I, E>(name: T) -> impl Fn(I) -> IResult<I, bool, E>
 where
-    T: InputLength + Clone,
-    I: InputTake + InputTakeAtPosition + Compare<T> + Clone,
+    T: InputLength + InputIter + Clone,
+    I: Slice<RangeFrom<usize>> + InputTake + InputTakeAtPosition + InputIter + Compare<T> + Clone,
+    <I as InputIter>::Item: AsChar,
     <I as InputTakeAtPosition>::Item: AsChar + Clone,
     E: ParseError<I>,
 {
-    map(opt(pair(tag(name), space1)), |v| v.is_some())
+    map(opt(pair(tag(name), char(' '))), |v| v.is_some())
 }
 
 #[cfg(test)]
@@ -306,8 +388,7 @@ mod tests {
     fn parse_protocol() {
         assert_eq!(
             protocol(
-                r#"
-# Copyright 2017 The Chromium Authors. All rights reserved.
+                r#"# Copyright 2017 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -320,11 +401,28 @@ experimental domain Accessibility
 
   # Unique accessibility node identifier.
   type AXNodeId extends string
+
+  # Enum of possible property types.
+  type AXValueType extends string
+    enum
+      boolean
+      tristate
+      booleanOrUndefined
+
+  # A single source for a computed AX property.
+  type AXValueSource extends object
+    properties
+      # What type of source this is.
+      AXValueSourceType type
+      # The value of this property source.
+      optional AXValue value
+      # The name of the relevant attribute, if any.
+      optional string attribute
 "#
             )
             .unwrap(),
             (
-                "\n",
+                "",
                 Protocol {
                     description: vec![
                         "Copyright 2017 The Chromium Authors. All rights reserved.",
@@ -338,15 +436,75 @@ experimental domain Accessibility
                         deprecated: false,
                         name: "Accessibility",
                         dependencies: vec!["DOM"],
-                        types: vec![Type {
-                            description: vec!["Unique accessibility node identifier."],
-                            experimental: false,
-                            deprecated: false,
-                            optional: false,
-                            id: "AXNodeId",
-                            extends: Ty::String,
-                            item: None
-                        }],
+                        types: vec![
+                            Type {
+                                description: vec!["Unique accessibility node identifier."],
+                                experimental: false,
+                                deprecated: false,
+                                optional: false,
+                                id: "AXNodeId",
+                                extends: Ty::String,
+                                item: None,
+                            },
+                            Type {
+                                description: vec!["Enum of possible property types."],
+                                experimental: false,
+                                deprecated: false,
+                                optional: false,
+                                id: "AXValueType",
+                                extends: Ty::String,
+                                item: Some(Item::Enum(vec![
+                                    Variant {
+                                        description: vec![],
+                                        name: "boolean"
+                                    },
+                                    Variant {
+                                        description: vec![],
+                                        name: "tristate"
+                                    },
+                                    Variant {
+                                        description: vec![],
+                                        name: "booleanOrUndefined"
+                                    }
+                                ]))
+                            },
+                            Type {
+                                description: vec!["A single source for a computed AX property."],
+                                experimental: false,
+                                deprecated: false,
+                                optional: false,
+                                id: "AXValueSource",
+                                extends: Ty::Object,
+                                item: Some(Item::Properties(vec![
+                                    Param {
+                                        description: vec!["What type of source this is."],
+                                        experimental: false,
+                                        deprecated: false,
+                                        optional: false,
+                                        ty: Ty::Ref("AXValueSourceType"),
+                                        name: "type"
+                                    },
+                                    Param {
+                                        description: vec!["The value of this property source."],
+                                        experimental: false,
+                                        deprecated: false,
+                                        optional: true,
+                                        ty: Ty::Ref("AXValue"),
+                                        name: "value"
+                                    },
+                                    Param {
+                                        description: vec![
+                                            "The name of the relevant attribute, if any."
+                                        ],
+                                        experimental: false,
+                                        deprecated: false,
+                                        optional: true,
+                                        ty: Ty::String,
+                                        name: "attribute"
+                                    }
+                                ]))
+                            }
+                        ],
                         commands: vec![],
                         events: vec![]
                     }],
@@ -376,7 +534,7 @@ experimental domain Accessibility
 "#
             )
             .unwrap(),
-            ("\n", (1, 3))
+            ("", (1, 3))
         )
     }
 
@@ -385,7 +543,7 @@ experimental domain Accessibility
         assert_eq!(
             domain("experimental domain Accessibility\n").unwrap(),
             (
-                "\n",
+                "",
                 Domain {
                     description: vec![],
                     experimental: true,
@@ -402,15 +560,14 @@ experimental domain Accessibility
 
     #[test]
     fn parse_depends_on() {
-        assert_eq!(depends_on("  depends on DOM\n").unwrap(), ("\n", "DOM"));
+        assert_eq!(depends_on("  depends on DOM\n").unwrap(), ("", "DOM"));
     }
 
     #[test]
     fn parse_type() {
         assert_eq!(
             type_(
-                r#"
-  type AXProperty extends object
+                r#"  type AXProperty extends object
     properties
       # The name of this property.
       AXPropertyName name
@@ -420,7 +577,7 @@ experimental domain Accessibility
             )
             .unwrap(),
             (
-                "\n",
+                "",
                 Type {
                     description: vec![],
                     experimental: false,
@@ -455,8 +612,7 @@ experimental domain Accessibility
     fn parse_enum() {
         assert_eq!(
             type_(
-                r#"
-  # Enum of possible property sources.
+                r#"  # Enum of possible property sources.
   type AXValueSourceType extends string
     enum
       attribute
@@ -469,7 +625,7 @@ experimental domain Accessibility
             )
             .unwrap(),
             (
-                "\n",
+                "",
                 Type {
                     description: vec!["Enum of possible property sources."],
                     experimental: false,
@@ -509,8 +665,7 @@ experimental domain Accessibility
 
         assert_eq!(
             type_(
-                r#"
-  # Pseudo element type.
+                r#"  # Pseudo element type.
   type PseudoType extends string
     enum
       first-line
@@ -520,7 +675,7 @@ experimental domain Accessibility
             )
             .unwrap(),
             (
-                "\n",
+                "",
                 Type {
                     description: vec!["Pseudo element type."],
                     experimental: false,
@@ -551,8 +706,7 @@ experimental domain Accessibility
     fn parse_params() {
         assert_eq!(
             item(
-                r#"
-    properties
+                r#"    properties
       # The type of this value.
       AXValueType type
       # The computed value of this property.
@@ -568,7 +722,7 @@ experimental domain Accessibility
             )
             .unwrap(),
             (
-                "\n",
+                "",
                 Item::Properties(vec![
                     Param {
                         description: vec!["The type of this value."],
@@ -581,16 +735,16 @@ experimental domain Accessibility
                     Param {
                         description: vec!["The computed value of this property."],
                         experimental: false,
-                        deprecated: true,
-                        optional: false,
+                        deprecated: false,
+                        optional: true,
                         ty: Ty::Any,
                         name: "value"
                     },
                     Param {
                         description: vec!["One or more related nodes, if applicable."],
                         experimental: false,
-                        deprecated: true,
-                        optional: false,
+                        deprecated: false,
+                        optional: true,
                         ty: Ty::ArrayOf(Box::new(Ty::Ref("AXRelatedNode"))),
                         name: "relatedNodes"
                     },
@@ -615,8 +769,7 @@ experimental domain Accessibility
     fn parse_command() {
         assert_eq!(
             command(
-                r#"
-  # Returns the DER-encoded certificate.
+                r#"  # Returns the DER-encoded certificate.
   experimental command getCertificate
     parameters
       # Origin to get certificate for.
@@ -627,7 +780,7 @@ experimental domain Accessibility
             )
             .unwrap(),
             (
-                "\n",
+                "",
                 Command {
                     description: vec!["Returns the DER-encoded certificate."],
                     experimental: true,
@@ -656,8 +809,7 @@ experimental domain Accessibility
 
         assert_eq!(
             command(
-                r#"
-  # Hides any highlight.
+                r#"  # Hides any highlight.
   command hideHighlight
     # Use 'Overlay.hideHighlight' instead
     redirect Overlay
@@ -665,7 +817,7 @@ experimental domain Accessibility
             )
             .unwrap(),
             (
-                "\n",
+                "",
                 Command {
                     description: vec!["Hides any highlight."],
                     experimental: false,
@@ -685,8 +837,7 @@ experimental domain Accessibility
     #[test]
     fn parse_event() {
         assert_eq!(
-            event(r#"
-  # Notification sent after the virtual time has advanced.
+            event(r#"  # Notification sent after the virtual time has advanced.
   experimental event virtualTimeAdvanced
     parameters
       # The amount of virtual time that has elapsed in milliseconds since virtual time was first
@@ -694,7 +845,7 @@ experimental domain Accessibility
       number virtualTimeElapsed
 "#).unwrap(),
             (
-                "\n",
+                "",
                 Event {
                     description: vec!["Notification sent after the virtual time has advanced."],
                     experimental: true,
@@ -722,14 +873,13 @@ experimental domain Accessibility
     fn parse_redirect() {
         assert_eq!(
             redirect(
-                r#"
-    # Use 'Emulation.clearGeolocationOverride' instead
+                r#"    # Use 'Emulation.clearGeolocationOverride' instead
     redirect Emulation
 "#
             )
             .unwrap(),
             (
-                "\n",
+                "",
                 Redirect {
                     description: vec!["Use 'Emulation.clearGeolocationOverride' instead"],
                     to: "Emulation"
