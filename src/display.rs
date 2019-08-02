@@ -28,11 +28,7 @@ impl fmt::Display for Protocol<'_> {
 }
 impl fmt::Display for Version {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(
-            f,
-            "version\n  major {}\n  minor {}",
-            self.major, self.minor
-        )
+        writeln!(f, "version\n  major {}\n  minor {}", self.major, self.minor)
     }
 }
 
