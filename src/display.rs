@@ -17,21 +17,22 @@ fn write_description<W: fmt::Write>(f: &mut W, description: &[&str]) -> fmt::Res
 impl fmt::Display for Protocol<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write_description(f, &self.description)?;
-        writeln!(
-            f,
-            r#"
-version
-  major {}
-  minor {}
-"#,
-            self.version.0, self.version.1
-        )?;
+        writeln!(f, "{}", self.version)?;
 
         for domain in &self.domains {
             write!(f, "{}", domain)?;
         }
 
         Ok(())
+    }
+}
+impl fmt::Display for Version {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(
+            f,
+            "version\n  major {}\n  minor {}",
+            self.major, self.minor
+        )
     }
 }
 
@@ -48,7 +49,7 @@ impl fmt::Display for Domain<'_> {
                 ""
             },
             if self.deprecated { "deprecated " } else { "" },
-            self.name,
+            self.domain,
         )?;
 
         for depends in &self.dependencies {

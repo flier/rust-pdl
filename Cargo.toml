@@ -13,6 +13,8 @@ display = ["indented"]
 to_json = ["serde", "serde_json"]
 
 [dependencies]
+cfg-if = "0.1"
+
 log = { version = "0.4", optional = true }
 nom = { version = "5", optional = true }
 indented = { version = "0.1", optional = true }
@@ -26,4 +28,4 @@ structopt = "0.2"
 
 [[example]]
 name = "parser"
-required-features = ["parse", "to_json"]
+required-features = ["parse", "display", "to_json"]

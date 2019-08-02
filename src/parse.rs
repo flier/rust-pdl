@@ -63,7 +63,7 @@ fn comment(input: &str) -> IResult<&str, &str> {
     )(input)
 }
 
-fn version(input: &str) -> IResult<&str, (usize, usize)> {
+fn version(input: &str) -> IResult<&str, Version> {
     map(
         tuple((
             tuple((tag("version"), eol)),
@@ -82,7 +82,10 @@ fn version(input: &str) -> IResult<&str, (usize, usize)> {
                 eol,
             )),
         )),
-        |((_version, _), (_, _major, _, major, _), (_, _minor, _, minor, _))| (major, minor),
+        |((_version, _), (_, _major, _, major, _), (_, _minor, _, minor, _))| Version {
+            major,
+            minor,
+        },
     )(input)
 }
 
@@ -105,7 +108,7 @@ fn domain(input: &str) -> IResult<&str, Domain> {
         )),
         |(
             description,
-            (experimental, deprecated, _domain, _, name, _eol),
+            (experimental, deprecated, _domain, _, domain, _eol),
             dependencies,
             types,
             commands,
@@ -114,7 +117,7 @@ fn domain(input: &str) -> IResult<&str, Domain> {
             description,
             experimental,
             deprecated,
-            name,
+            domain,
             dependencies,
             types,
             commands,
@@ -184,6 +187,25 @@ fn ty(input: &str) -> IResult<&str, Ty> {
         )),
         |(is_array, ty)| Ty::new(ty, is_array),
     )(input)
+}
+
+impl Ty<'_> {
+    fn new(ty: &str, is_array: bool) -> Ty {
+        if is_array {
+            Ty::ArrayOf(Box::new(Ty::new(ty, false)))
+        } else {
+            match ty {
+                "enum" => Ty::Enum(vec![]),
+                "integer" => Ty::Integer,
+                "number" => Ty::Number,
+                "boolean" => Ty::Boolean,
+                "string" => Ty::String,
+                "object" => Ty::Object,
+                "any" => Ty::Any,
+                _ => Ty::Ref(ty),
+            }
+        }
+    }
 }
 
 fn item(input: &str) -> IResult<&str, Item> {
@@ -427,12 +449,12 @@ experimental domain Accessibility
                         "Use of this source code is governed by a BSD-style license that can be",
                         "found in the LICENSE file."
                     ],
-                    version: (1, 3),
+                    version: Version { major: 1, minor: 3 },
                     domains: vec![Domain {
                         description: vec![],
                         experimental: true,
                         deprecated: false,
-                        name: "Accessibility",
+                        domain: "Accessibility",
                         dependencies: vec!["DOM"],
                         types: vec![
                             Type {
@@ -529,7 +551,7 @@ experimental domain Accessibility
 "#
             )
             .unwrap(),
-            ("", (1, 3))
+            ("", Version { major: 1, minor: 3 })
         )
     }
 
@@ -543,7 +565,7 @@ experimental domain Accessibility
                     description: vec![],
                     experimental: true,
                     deprecated: false,
-                    name: "Accessibility",
+                    domain: "Accessibility",
                     dependencies: vec![],
                     types: vec![],
                     commands: vec![],

@@ -50,7 +50,7 @@ impl Opt {
 
     fn dump_to<W: Write>(&self, w: &mut W, proto: &pdl::Protocol) -> Result<(), Error> {
         if self.json {
-            write!(w, "{}", proto.to_json()?)?;
+            write!(w, "{}", proto.to_json_pretty()?)?;
         } else if self.pdl {
             write!(w, "{}", proto.to_string())?;
         }
