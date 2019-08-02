@@ -2,9 +2,18 @@
 name = "pdl"
 version = "0.1.0"
 authors = ["Flier Lu <flier.lu@gmail.com>"]
+description = "Parse PDL file for the Chrome DevTools Protocol"
+homepage = "https://github.com/flier/rust-pdl"
+repository = "https://github.com/flier/rust-pdl"
+readme = "README.md"
+keywords = ["chrome", "devtools", "headless"]
+categories = ["api-bindings", "development-tools"]
+license = "MIT"
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[badges]
+appveyor = { repository = "flier/rust-pdl", branch = "master", service = "github" }
+travis-ci = { repository = "flier/rust-pdl", branch = "master" }
 
 [features]
 default = ["parse", "display", "to_json"]
