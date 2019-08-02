@@ -1,4 +1,4 @@
-# pdl [![travis](https://travis-ci.org/flier/rust-pdl.svg?branch=master)](https://travis-ci.org/flier/rust-pdl) [![Build status](https://ci.appveyor.com/api/projects/status/jhlk20pjdrx0jh5u?svg=true)](https://ci.appveyor.com/project/flier/rust-pdl) [![crate](https://img.shields.io/crates/v/pdl.svg)](https://crates.io/crates/pdl) [![docs](https://docs.rs/pdl/badge.svg)](https://docs.rs/crate/pdl/) [![dependency status](https://deps.rs/repo/github/flier/rust-pdl/status.svg)](https://deps.rs/repo/github/flier/rust-pdl)
+# pdl [![Travis Build Status](https://travis-ci.org/flier/rust-pdl.svg?branch=master)](https://travis-ci.org/flier/rust-pdl) [![Appveyor Build status](https://ci.appveyor.com/api/projects/status/h2tvdm5uiqtc4mh2?svg=true)](https://ci.appveyor.com/project/flier/rust-pdl) [![crate](https://img.shields.io/crates/v/pdl.svg)](https://crates.io/crates/pdl) [![docs](https://docs.rs/pdl/badge.svg)](https://docs.rs/crate/pdl/) [![dependency status](https://deps.rs/repo/github/flier/rust-pdl/status.svg)](https://deps.rs/repo/github/flier/rust-pdl)
 
 Parse PDL file for the Chrome DevTools Protocol.
 
