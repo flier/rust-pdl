@@ -2,6 +2,8 @@
 
 Parse PDL file for [the Chrome DevTools Protocol](https://github.com/ChromeDevTools/devtools-protocol).
 
+**NOTE:** `PDL` (pronounced as `ˈpo͞odl`) is a home-grown format to describe the  DevTools protocol. PDL support, such as Sublime syntax highlighting and the json converter, is available at https://github.com/pavelfeldman/pdl.
+
 ## Usage
 
 To use `pdl` in your project, add the following to your Cargo.toml:
