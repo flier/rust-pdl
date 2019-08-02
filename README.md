@@ -33,3 +33,9 @@ For more detail, please check the `parser` example.
 ```sh
 $ cargo run --example parser -- browser_protocol.pdl --json --output browser_protocol.json
 ```
+
+## Resources
+
+- [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/) - Chrome DevTools Protocol Domain documentation
+- [Awesome chrome-devtools](https://github.com/ChromeDevTools/awesome-chrome-devtools) - Awesome tooling and resources in the Chrome DevTools ecosystem
+- [devtools-protocol repo](https://github.com/ChromeDevTools/devtools-protocol) - File issues at this repo if you have concerns or problems with the DevTools Protocol (aka Chrome Remote Debugging Protocol).
