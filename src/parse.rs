@@ -91,7 +91,7 @@ fn version(input: &str) -> IResult<&str, Version> {
 
 fn domain(input: &str) -> IResult<&str, Domain> {
     enum Item<'a> {
-        Type(Type<'a>),
+        TypeDef(TypeDef<'a>),
         Command(Command<'a>),
         Event(Event<'a>),
     }
@@ -111,7 +111,7 @@ fn domain(input: &str) -> IResult<&str, Domain> {
             many0(preceded(
                 empty_lines,
                 alt((
-                    map(type_, Item::Type),
+                    map(type_def, Item::TypeDef),
                     map(command, Item::Command),
                     map(event, Item::Event),
                 )),
@@ -127,7 +127,7 @@ fn domain(input: &str) -> IResult<&str, Domain> {
                 (vec![], vec![], vec![]),
                 |(mut types, mut commands, mut events), item| {
                     match item {
-                        Item::Type(ty) => types.push(ty),
+                        Item::TypeDef(ty) => types.push(ty),
                         Item::Command(cmd) => commands.push(cmd),
                         Item::Event(evt) => events.push(evt),
                     }
@@ -163,7 +163,7 @@ fn depends_on(input: &str) -> IResult<&str, &str> {
     )(input)
 }
 
-fn type_(input: &str) -> IResult<&str, Type> {
+fn type_def(input: &str) -> IResult<&str, TypeDef> {
     map(
         tuple((
             description,
@@ -187,7 +187,7 @@ fn type_(input: &str) -> IResult<&str, Type> {
             (_, experimental, deprecated, _type, _, id, _, _extends, _, extends, _),
             item,
         )| {
-            let ty = Type {
+            let ty = TypeDef {
                 description,
                 experimental,
                 deprecated,
@@ -203,30 +203,30 @@ fn type_(input: &str) -> IResult<&str, Type> {
     )(input)
 }
 
-fn ty(input: &str) -> IResult<&str, Ty> {
+fn ty(input: &str) -> IResult<&str, Type> {
     map(
         tuple((
             optional("array of"),
             take_while(|c: char| !c.is_whitespace()),
         )),
-        |(is_array, ty)| Ty::new(ty, is_array),
+        |(is_array, ty)| Type::new(ty, is_array),
     )(input)
 }
 
-impl Ty<'_> {
-    fn new(ty: &str, is_array: bool) -> Ty {
+impl Type<'_> {
+    fn new(ty: &str, is_array: bool) -> Type {
         if is_array {
-            Ty::ArrayOf(Box::new(Ty::new(ty, false)))
+            Type::ArrayOf(Box::new(Type::new(ty, false)))
         } else {
             match ty {
-                "enum" => Ty::Enum(vec![]),
-                "integer" => Ty::Integer,
-                "number" => Ty::Number,
-                "boolean" => Ty::Boolean,
-                "string" => Ty::String,
-                "object" => Ty::Object,
-                "any" => Ty::Any,
-                _ => Ty::Ref(ty),
+                "enum" => Type::Enum(vec![]),
+                "integer" => Type::Integer,
+                "number" => Type::Number,
+                "boolean" => Type::Boolean,
+                "string" => Type::String,
+                "object" => Type::Object,
+                "any" => Type::Any,
+                _ => Type::Ref(ty),
             }
         }
     }
@@ -300,7 +300,7 @@ fn param(input: &str) -> IResult<&str, Param> {
         },
     )(input)?;
 
-    if let Ty::Enum(ref mut variants) = param.ty {
+    if let Type::Enum(ref mut variants) = param.ty {
         let (input, mut vars) = many1(variant)(input)?;
 
         trace!("{:?}", vars);
@@ -483,20 +483,20 @@ experimental domain Accessibility
                         domain: "Accessibility",
                         dependencies: vec!["DOM"],
                         types: vec![
-                            Type {
+                            TypeDef {
                                 description: vec!["Unique accessibility node identifier."],
                                 experimental: false,
                                 deprecated: false,
                                 id: "AXNodeId",
-                                extends: Ty::String,
+                                extends: Type::String,
                                 item: None,
                             },
-                            Type {
+                            TypeDef {
                                 description: vec!["Enum of possible property types."],
                                 experimental: false,
                                 deprecated: false,
                                 id: "AXValueType",
-                                extends: Ty::String,
+                                extends: Type::String,
                                 item: Some(Item::Enum(vec![
                                     Variant {
                                         description: vec![],
@@ -512,19 +512,19 @@ experimental domain Accessibility
                                     }
                                 ]))
                             },
-                            Type {
+                            TypeDef {
                                 description: vec!["A single source for a computed AX property."],
                                 experimental: false,
                                 deprecated: false,
                                 id: "AXValueSource",
-                                extends: Ty::Object,
+                                extends: Type::Object,
                                 item: Some(Item::Properties(vec![
                                     Param {
                                         description: vec!["What type of source this is."],
                                         experimental: false,
                                         deprecated: false,
                                         optional: false,
-                                        ty: Ty::Ref("AXValueSourceType"),
+                                        ty: Type::Ref("AXValueSourceType"),
                                         name: "type"
                                     },
                                     Param {
@@ -532,7 +532,7 @@ experimental domain Accessibility
                                         experimental: false,
                                         deprecated: false,
                                         optional: true,
-                                        ty: Ty::Ref("AXValue"),
+                                        ty: Type::Ref("AXValue"),
                                         name: "value"
                                     },
                                     Param {
@@ -542,7 +542,7 @@ experimental domain Accessibility
                                         experimental: false,
                                         deprecated: false,
                                         optional: true,
-                                        ty: Ty::String,
+                                        ty: Type::String,
                                         name: "attribute"
                                     }
                                 ]))
@@ -607,9 +607,9 @@ experimental domain Accessibility
     }
 
     #[test]
-    fn parse_type() {
+    fn parse_type_def() {
         assert_eq!(
-            type_(
+            type_def(
                 r#"  type AXProperty extends object
     properties
       # The name of this property.
@@ -621,19 +621,19 @@ experimental domain Accessibility
             .unwrap(),
             (
                 "",
-                Type {
+                TypeDef {
                     description: vec![],
                     experimental: false,
                     deprecated: false,
                     id: "AXProperty",
-                    extends: Ty::Object,
+                    extends: Type::Object,
                     item: Some(Item::Properties(vec![
                         Param {
                             description: vec!["The name of this property."],
                             experimental: false,
                             deprecated: false,
                             optional: false,
-                            ty: Ty::Ref("AXPropertyName"),
+                            ty: Type::Ref("AXPropertyName"),
                             name: "name"
                         },
                         Param {
@@ -641,7 +641,7 @@ experimental domain Accessibility
                             experimental: false,
                             deprecated: false,
                             optional: false,
-                            ty: Ty::Ref("AXValue"),
+                            ty: Type::Ref("AXValue"),
                             name: "value"
                         }
                     ]))
@@ -653,7 +653,7 @@ experimental domain Accessibility
     #[test]
     fn parse_enum() {
         assert_eq!(
-            type_(
+            type_def(
                 r#"  # Enum of possible property sources.
   type AXValueSourceType extends string
     enum
@@ -668,12 +668,12 @@ experimental domain Accessibility
             .unwrap(),
             (
                 "",
-                Type {
+                TypeDef {
                     description: vec!["Enum of possible property sources."],
                     experimental: false,
                     deprecated: false,
                     id: "AXValueSourceType",
-                    extends: Ty::String,
+                    extends: Type::String,
                     item: Some(Item::Enum(vec![
                         Variant {
                             description: vec![],
@@ -705,7 +705,7 @@ experimental domain Accessibility
         );
 
         assert_eq!(
-            type_(
+            type_def(
                 r#"  # Pseudo element type.
   type PseudoType extends string
     enum
@@ -717,12 +717,12 @@ experimental domain Accessibility
             .unwrap(),
             (
                 "",
-                Type {
+                TypeDef {
                     description: vec!["Pseudo element type."],
                     experimental: false,
                     deprecated: false,
                     id: "PseudoType",
-                    extends: Ty::String,
+                    extends: Type::String,
                     item: Some(Item::Enum(vec![
                         Variant {
                             description: vec![],
@@ -769,7 +769,7 @@ experimental domain Accessibility
                         experimental: false,
                         deprecated: false,
                         optional: false,
-                        ty: Ty::Ref("AXValueType"),
+                        ty: Type::Ref("AXValueType"),
                         name: "type"
                     },
                     Param {
@@ -777,7 +777,7 @@ experimental domain Accessibility
                         experimental: false,
                         deprecated: false,
                         optional: true,
-                        ty: Ty::Any,
+                        ty: Type::Any,
                         name: "value"
                     },
                     Param {
@@ -785,7 +785,7 @@ experimental domain Accessibility
                         experimental: false,
                         deprecated: false,
                         optional: true,
-                        ty: Ty::ArrayOf(Box::new(Ty::Ref("AXRelatedNode"))),
+                        ty: Type::ArrayOf(Box::new(Type::Ref("AXRelatedNode"))),
                         name: "relatedNodes"
                     },
                     Param {
@@ -793,7 +793,7 @@ experimental domain Accessibility
                         experimental: false,
                         deprecated: false,
                         optional: false,
-                        ty: Ty::Enum(vec![
+                        ty: Type::Enum(vec![
                             Variant::new("CSSTransition"),
                             Variant::new("CSSAnimation"),
                             Variant::new("WebAnimation"),
@@ -832,7 +832,7 @@ experimental domain Accessibility
                         experimental: false,
                         deprecated: false,
                         optional: false,
-                        ty: Ty::String,
+                        ty: Type::String,
                         name: "origin"
                     }],
                     returns: vec![Param {
@@ -840,7 +840,7 @@ experimental domain Accessibility
                         experimental: false,
                         deprecated: false,
                         optional: false,
-                        ty: Ty::ArrayOf(Box::new(Ty::String)),
+                        ty: Type::ArrayOf(Box::new(Type::String)),
                         name: "tableNames"
                     }],
                 }
@@ -900,7 +900,7 @@ experimental domain Accessibility
                             experimental: false,
                             deprecated: false,
                             optional: false,
-                            ty: Ty::Number,
+                            ty: Type::Number,
                             name: "virtualTimeElapsed"
                         },
                     ],

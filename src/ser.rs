@@ -59,7 +59,7 @@ impl Protocol<'_> {
     }
 }
 
-impl Serialize for Ty<'_> {
+impl Serialize for Type<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -67,25 +67,25 @@ impl Serialize for Ty<'_> {
         let mut map = serializer.serialize_map(None)?;
 
         match self {
-            Ty::Integer => {
+            Type::Integer => {
                 map.serialize_entry("type", "integer")?;
             }
-            Ty::Number => {
+            Type::Number => {
                 map.serialize_entry("type", "number")?;
             }
-            Ty::Boolean => {
+            Type::Boolean => {
                 map.serialize_entry("type", "boolean")?;
             }
-            Ty::String => {
+            Type::String => {
                 map.serialize_entry("type", "string")?;
             }
-            Ty::Object => {
+            Type::Object => {
                 map.serialize_entry("type", "object")?;
             }
-            Ty::Any => {
+            Type::Any => {
                 map.serialize_entry("type", "any")?;
             }
-            Ty::Enum(variants) => {
+            Type::Enum(variants) => {
                 map.serialize_entry("type", "string")?;
                 map.serialize_entry(
                     "enum",
@@ -95,11 +95,11 @@ impl Serialize for Ty<'_> {
                         .collect::<Vec<_>>(),
                 )?;
             }
-            Ty::ArrayOf(ty) => {
+            Type::ArrayOf(ty) => {
                 map.serialize_entry("type", "array")?;
                 map.serialize_entry("items", &ty)?;
             }
-            Ty::Ref(id) => {
+            Type::Ref(id) => {
                 map.serialize_entry("$ref", &id)?;
             }
         }

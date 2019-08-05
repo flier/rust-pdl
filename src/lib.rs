@@ -25,7 +25,7 @@ cfg_if! {
 pub type Description<'a> = Vec<&'a str>;
 
 #[cfg_attr(feature = "to_json", derive(Serialize))]
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Protocol<'a> {
     #[cfg_attr(feature = "to_json", serde(skip_serializing))]
     pub description: Description<'a>,
@@ -35,7 +35,7 @@ pub struct Protocol<'a> {
 }
 
 #[cfg_attr(feature = "to_json", derive(Serialize))]
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Version {
     #[cfg_attr(feature = "to_json", serde(serialize_with = "ser::serialize_usize"))]
     pub major: usize,
@@ -44,7 +44,7 @@ pub struct Version {
 }
 
 #[cfg_attr(feature = "to_json", derive(Serialize))]
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Domain<'a> {
     #[cfg_attr(feature = "to_json", serde(skip_serializing_if = "Vec::is_empty"))]
     #[cfg_attr(
@@ -60,7 +60,7 @@ pub struct Domain<'a> {
     #[cfg_attr(feature = "to_json", serde(skip_serializing_if = "Vec::is_empty"))]
     pub dependencies: Vec<&'a str>,
     #[cfg_attr(feature = "to_json", serde(skip_serializing_if = "Vec::is_empty"))]
-    pub types: Vec<Type<'a>>,
+    pub types: Vec<TypeDef<'a>>,
     #[cfg_attr(feature = "to_json", serde(skip_serializing_if = "Vec::is_empty"))]
     pub commands: Vec<Command<'a>>,
     #[cfg_attr(feature = "to_json", serde(skip_serializing_if = "Vec::is_empty"))]
@@ -68,8 +68,8 @@ pub struct Domain<'a> {
 }
 
 #[cfg_attr(feature = "to_json", derive(Serialize))]
-#[derive(Debug, PartialEq)]
-pub struct Type<'a> {
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TypeDef<'a> {
     #[cfg_attr(feature = "to_json", serde(skip_serializing_if = "Vec::is_empty"))]
     #[cfg_attr(
         feature = "to_json",
@@ -82,13 +82,13 @@ pub struct Type<'a> {
     pub deprecated: bool,
     pub id: &'a str,
     #[cfg_attr(feature = "to_json", serde(flatten))]
-    pub extends: Ty<'a>,
+    pub extends: Type<'a>,
     #[cfg_attr(feature = "to_json", serde(flatten))]
     pub item: Option<Item<'a>>,
 }
 
-#[derive(Debug, PartialEq)]
-pub enum Ty<'a> {
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Type<'a> {
     Integer,
     Number,
     Boolean,
@@ -96,13 +96,13 @@ pub enum Ty<'a> {
     Object,
     Any,
     Enum(Vec<Variant<'a>>),
-    ArrayOf(Box<Ty<'a>>),
+    ArrayOf(Box<Type<'a>>),
     Ref(&'a str),
 }
 
 #[cfg_attr(feature = "to_json", derive(Serialize))]
 #[cfg_attr(feature = "to_json", serde(rename_all = "lowercase"))]
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Item<'a> {
     #[cfg_attr(feature = "to_json", serde(serialize_with = "ser::serialize_enum"))]
     Enum(Vec<Variant<'a>>),
@@ -110,7 +110,7 @@ pub enum Item<'a> {
 }
 
 #[cfg_attr(feature = "to_json", derive(Serialize))]
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Variant<'a> {
     #[cfg_attr(feature = "to_json", serde(skip_serializing_if = "Vec::is_empty"))]
     #[cfg_attr(
@@ -131,7 +131,7 @@ impl<'a> Variant<'a> {
 }
 
 #[cfg_attr(feature = "to_json", derive(Serialize))]
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Param<'a> {
     #[cfg_attr(feature = "to_json", serde(skip_serializing_if = "Vec::is_empty"))]
     #[cfg_attr(
@@ -146,12 +146,12 @@ pub struct Param<'a> {
     #[cfg_attr(feature = "to_json", serde(skip_serializing_if = "ser::is_false"))]
     pub optional: bool,
     #[cfg_attr(feature = "to_json", serde(flatten))]
-    pub ty: Ty<'a>,
+    pub ty: Type<'a>,
     pub name: &'a str,
 }
 
 #[cfg_attr(feature = "to_json", derive(Serialize))]
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Command<'a> {
     #[cfg_attr(feature = "to_json", serde(skip_serializing_if = "Vec::is_empty"))]
     #[cfg_attr(
@@ -174,7 +174,7 @@ pub struct Command<'a> {
 }
 
 #[cfg_attr(feature = "to_json", derive(Serialize))]
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Event<'a> {
     #[cfg_attr(feature = "to_json", serde(skip_serializing_if = "Vec::is_empty"))]
     #[cfg_attr(
@@ -191,7 +191,7 @@ pub struct Event<'a> {
     pub parameters: Vec<Param<'a>>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Redirect<'a> {
     pub description: Description<'a>,
     pub to: &'a str,

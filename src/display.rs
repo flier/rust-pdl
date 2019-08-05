@@ -52,7 +52,7 @@ impl fmt::Display for Domain<'_> {
             writeln!(f, "{}", indented(format!("depends on {}", depends)))?;
         }
 
-        writeln!(f, "")?;
+        writeln!(f)?;
 
         for ty in &self.types {
             writeln!(f, "{}", indented(ty))?;
@@ -68,7 +68,7 @@ impl fmt::Display for Domain<'_> {
     }
 }
 
-impl fmt::Display for Type<'_> {
+impl fmt::Display for TypeDef<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write_description(f, &self.description)?;
 
@@ -93,18 +93,18 @@ impl fmt::Display for Type<'_> {
     }
 }
 
-impl fmt::Display for Ty<'_> {
+impl fmt::Display for Type<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Ty::Enum(_) => f.write_str("enum"),
-            Ty::Integer => f.write_str("integer"),
-            Ty::Number => f.write_str("number"),
-            Ty::Boolean => f.write_str("boolean"),
-            Ty::String => f.write_str("string"),
-            Ty::Object => f.write_str("object"),
-            Ty::Any => f.write_str("any"),
-            Ty::ArrayOf(ty) => write!(f, "array of {}", ty),
-            Ty::Ref(id) => f.write_str(id),
+            Type::Enum(_) => f.write_str("enum"),
+            Type::Integer => f.write_str("integer"),
+            Type::Number => f.write_str("number"),
+            Type::Boolean => f.write_str("boolean"),
+            Type::String => f.write_str("string"),
+            Type::Object => f.write_str("object"),
+            Type::Any => f.write_str("any"),
+            Type::ArrayOf(ty) => write!(f, "array of {}", ty),
+            Type::Ref(id) => f.write_str(id),
         }
     }
 }
@@ -173,7 +173,7 @@ impl fmt::Display for Param<'_> {
             self.name
         )?;
 
-        if let Ty::Enum(ref variants) = self.ty {
+        if let Type::Enum(ref variants) = self.ty {
             write!(f, "{}", Enum(None, variants))
         } else {
             Ok(())
