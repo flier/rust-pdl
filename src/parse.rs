@@ -90,6 +90,12 @@ fn version(input: &str) -> IResult<&str, Version> {
 }
 
 fn domain(input: &str) -> IResult<&str, Domain> {
+    enum Item<'a> {
+        Type(Type<'a>),
+        Command(Command<'a>),
+        Event(Event<'a>),
+    }
+
     map(
         tuple((
             description,
@@ -102,26 +108,44 @@ fn domain(input: &str) -> IResult<&str, Domain> {
                 eol,
             )),
             many0(depends_on),
-            many0(preceded(empty_lines, type_)),
-            many0(preceded(empty_lines, command)),
-            many0(preceded(empty_lines, event)),
+            many0(preceded(
+                empty_lines,
+                alt((
+                    map(type_, Item::Type),
+                    map(command, Item::Command),
+                    map(event, Item::Event),
+                )),
+            )),
         )),
         |(
             description,
             (experimental, deprecated, _domain, _, domain, _eol),
             dependencies,
-            types,
-            commands,
-            events,
-        )| Domain {
-            description,
-            experimental,
-            deprecated,
-            domain,
-            dependencies,
-            types,
-            commands,
-            events,
+            items,
+        )| {
+            let (types, commands, events) = items.into_iter().fold(
+                (vec![], vec![], vec![]),
+                |(mut types, mut commands, mut events), item| {
+                    match item {
+                        Item::Type(ty) => types.push(ty),
+                        Item::Command(cmd) => commands.push(cmd),
+                        Item::Event(evt) => events.push(evt),
+                    }
+
+                    (types, commands, events)
+                },
+            );
+
+            Domain {
+                description,
+                experimental,
+                deprecated,
+                domain,
+                dependencies,
+                types,
+                commands,
+                events,
+            }
         },
     )(input)
 }
@@ -307,6 +331,7 @@ fn command(input: &str) -> IResult<&str, Command> {
                 tuple((indent, tag("parameters"), eol)),
                 many1(param),
             )),
+            empty_lines,
             opt(preceded(tuple((indent, tag("returns"), eol)), many1(param))),
         )),
         |(
@@ -314,6 +339,7 @@ fn command(input: &str) -> IResult<&str, Command> {
             (_, experimental, deprecated, _, _, name, _),
             redirect,
             parameters,
+            _,
             returns,
         )| {
             let command = Command {
