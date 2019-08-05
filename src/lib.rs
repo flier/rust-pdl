@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use cfg_if::cfg_if;
 
 cfg_if! {
@@ -22,7 +24,35 @@ cfg_if! {
     }
 }
 
-pub type Description<'a> = Vec<&'a str>;
+#[cfg_attr(feature = "to_json", derive(Serialize))]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Description<'a>(Vec<&'a str>);
+
+impl<'a> Deref for Description<'a> {
+    type Target = [&'a str];
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_slice()
+    }
+}
+
+impl<'a> From<Vec<&'a str>> for Description<'a> {
+    fn from(comments: Vec<&'a str>) -> Description<'a> {
+        Description(comments)
+    }
+}
+
+impl<'a> From<&'a str> for Description<'a> {
+    fn from(comment: &'a str) -> Description<'a> {
+        Description(vec![comment])
+    }
+}
+
+impl Description<'_> {
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
 
 #[cfg_attr(feature = "to_json", derive(Serialize))]
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -46,7 +76,10 @@ pub struct Version {
 #[cfg_attr(feature = "to_json", derive(Serialize))]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Domain<'a> {
-    #[cfg_attr(feature = "to_json", serde(skip_serializing_if = "Vec::is_empty"))]
+    #[cfg_attr(
+        feature = "to_json",
+        serde(skip_serializing_if = "Description::is_empty")
+    )]
     #[cfg_attr(
         feature = "to_json",
         serde(serialize_with = "ser::serialize_description")
@@ -56,7 +89,8 @@ pub struct Domain<'a> {
     pub experimental: bool,
     #[cfg_attr(feature = "to_json", serde(skip_serializing_if = "ser::is_false"))]
     pub deprecated: bool,
-    pub domain: &'a str,
+    #[cfg_attr(feature = "to_json", serde(rename = "domain"))]
+    pub name: &'a str,
     #[cfg_attr(feature = "to_json", serde(skip_serializing_if = "Vec::is_empty"))]
     pub dependencies: Vec<&'a str>,
     #[cfg_attr(feature = "to_json", serde(skip_serializing_if = "Vec::is_empty"))]
@@ -70,7 +104,10 @@ pub struct Domain<'a> {
 #[cfg_attr(feature = "to_json", derive(Serialize))]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TypeDef<'a> {
-    #[cfg_attr(feature = "to_json", serde(skip_serializing_if = "Vec::is_empty"))]
+    #[cfg_attr(
+        feature = "to_json",
+        serde(skip_serializing_if = "Description::is_empty")
+    )]
     #[cfg_attr(
         feature = "to_json",
         serde(serialize_with = "ser::serialize_description")
@@ -112,7 +149,10 @@ pub enum Item<'a> {
 #[cfg_attr(feature = "to_json", derive(Serialize))]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Variant<'a> {
-    #[cfg_attr(feature = "to_json", serde(skip_serializing_if = "Vec::is_empty"))]
+    #[cfg_attr(
+        feature = "to_json",
+        serde(skip_serializing_if = "Description::is_empty")
+    )]
     #[cfg_attr(
         feature = "to_json",
         serde(serialize_with = "ser::serialize_description")
@@ -124,7 +164,7 @@ pub struct Variant<'a> {
 impl<'a> Variant<'a> {
     pub fn new(name: &str) -> Variant {
         Variant {
-            description: vec![],
+            description: Default::default(),
             name,
         }
     }
@@ -133,7 +173,10 @@ impl<'a> Variant<'a> {
 #[cfg_attr(feature = "to_json", derive(Serialize))]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Param<'a> {
-    #[cfg_attr(feature = "to_json", serde(skip_serializing_if = "Vec::is_empty"))]
+    #[cfg_attr(
+        feature = "to_json",
+        serde(skip_serializing_if = "Description::is_empty")
+    )]
     #[cfg_attr(
         feature = "to_json",
         serde(serialize_with = "ser::serialize_description")
@@ -153,7 +196,10 @@ pub struct Param<'a> {
 #[cfg_attr(feature = "to_json", derive(Serialize))]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Command<'a> {
-    #[cfg_attr(feature = "to_json", serde(skip_serializing_if = "Vec::is_empty"))]
+    #[cfg_attr(
+        feature = "to_json",
+        serde(skip_serializing_if = "Description::is_empty")
+    )]
     #[cfg_attr(
         feature = "to_json",
         serde(serialize_with = "ser::serialize_description")
@@ -176,7 +222,10 @@ pub struct Command<'a> {
 #[cfg_attr(feature = "to_json", derive(Serialize))]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Event<'a> {
-    #[cfg_attr(feature = "to_json", serde(skip_serializing_if = "Vec::is_empty"))]
+    #[cfg_attr(
+        feature = "to_json",
+        serde(skip_serializing_if = "Description::is_empty")
+    )]
     #[cfg_attr(
         feature = "to_json",
         serde(serialize_with = "ser::serialize_description")

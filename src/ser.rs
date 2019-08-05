@@ -12,11 +12,11 @@ where
     serializer.serialize_str(&n.to_string())
 }
 
-pub fn serialize_description<S>(description: &[&str], serializer: S) -> Result<S::Ok, S::Error>
+pub fn serialize_description<S>(description: &Description, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    serializer.serialize_str(&description.join(" "))
+    serializer.serialize_str(&description.0.join(" "))
 }
 
 pub fn serialize_enum<S>(variants: &[Variant], serializer: S) -> Result<S::Ok, S::Error>

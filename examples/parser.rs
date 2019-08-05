@@ -97,9 +97,13 @@ mod markdown {
             for param in params {
                 writeln!(
                     w,
-                    "| {}`{}` | **{}** | {}{}{} |",
-                    if param.optional { "_optional_ " } else { "" },
+                    "| `{}`{} | **{}** | {}{}{} |",
                     param.name,
+                    if param.optional {
+                        " <br/> _optional_ "
+                    } else {
+                        ""
+                    },
                     param.ty,
                     if param.description.is_empty() {
                         "".to_string()
@@ -128,27 +132,24 @@ mod markdown {
     pub fn render<W: io::Write>(w: &mut W, name: &str, proto: &pdl::Protocol) -> Result<(), Error> {
         writeln!(
             w,
-            "# {}\nversion: {}.{}\n\n",
+            "# {}\n\nversion: {}.{}\n",
             name, proto.version.major, proto.version.minor
         )?;
 
         for domain in &proto.domains {
-            writeln!(w, "## {} Domain\n", domain.domain)?;
-
-            for comment in &domain.description {
-                writeln!(w, "> {}", comment)?;
-            }
+            writeln!(w, "## {} Domain\n", domain.name)?;
+            writeln!(w, "> {}", domain.description.join(" "))?;
 
             writeln!(
                 w,
-                "{}{}\n",
+                ">{}{}\n",
                 if domain.experimental {
-                    "**_EXPERIMENTAL_** "
+                    " **_EXPERIMENTAL_**"
                 } else {
                     ""
                 },
                 if domain.deprecated {
-                    "**_DEPRECATED_** "
+                    " **_DEPRECATED_**"
                 } else {
                     ""
                 }
@@ -158,22 +159,18 @@ mod markdown {
                 writeln!(w, "### Methods\n")?;
 
                 for cmd in &domain.commands {
-                    writeln!(w, "_{}._**{}**\n", domain.domain, cmd.name)?;
-
-                    for comment in &cmd.description {
-                        writeln!(w, "> {}", comment)?;
-                    }
-
+                    writeln!(w, "_{}._**{}**\n", domain.name, cmd.name)?;
+                    writeln!(w, "> {}", cmd.description.join(" "))?;
                     writeln!(
                         w,
-                        "{}{}\n",
+                        ">{}{}\n",
                         if cmd.experimental {
-                            "**_EXPERIMENTAL_** "
+                            " **_EXPERIMENTAL_**"
                         } else {
                             ""
                         },
                         if cmd.deprecated {
-                            "**_DEPRECATED_** "
+                            " **_DEPRECATED_**"
                         } else {
                             ""
                         }
@@ -190,22 +187,18 @@ mod markdown {
                 writeln!(w, "### Types\n")?;
 
                 for ty in &domain.types {
-                    writeln!(w, "**{}**\n", ty.id)?;
-
-                    for comment in &ty.description {
-                        writeln!(w, "> {}", comment)?;
-                    }
-
+                    writeln!(w, "_{}._**{}**\n", domain.name, ty.id)?;
+                    writeln!(w, "> {}", ty.description.join(" "))?;
                     writeln!(
                         w,
-                        "{}{}\n",
+                        ">{}{}\n",
                         if ty.experimental {
-                            "**_EXPERIMENTAL_** "
+                            " **_EXPERIMENTAL_**"
                         } else {
                             ""
                         },
                         if ty.deprecated {
-                            "**_DEPRECATED_** "
+                            " **_DEPRECATED_**"
                         } else {
                             ""
                         }
@@ -252,31 +245,27 @@ mod markdown {
                 writeln!(w, "### Events\n")?;
 
                 for evt in &domain.events {
-                    writeln!(w, "_{}._**{}**\n", domain.domain, evt.name)?;
-
-                    for comment in &evt.description {
-                        writeln!(w, "> {}", comment)?;
-                    }
-
+                    writeln!(w, "_{}._**{}**\n", domain.name, evt.name)?;
+                    writeln!(w, "> {}", evt.description.join(" "))?;
                     writeln!(
                         w,
-                        "{}{}\n",
+                        ">{}{}\n",
                         if evt.experimental {
-                            "**_EXPERIMENTAL_** "
+                            " **_EXPERIMENTAL_**"
                         } else {
                             ""
                         },
                         if evt.deprecated {
-                            "**_DEPRECATED_** "
+                            " **_DEPRECATED_**"
                         } else {
                             ""
                         }
                     )?;
 
                     write_params(w, "Parameters", &evt.parameters)?;
-
-                    writeln!(w, "---\n")?;
                 }
+
+                writeln!(w, "---\n")?;
             }
         }
 

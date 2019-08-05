@@ -6,17 +6,21 @@ fn indented<D: fmt::Display>(data: D) -> indented::Indented<D, indented::Space2>
     indented::indented_with(data, indented::Space2)
 }
 
-fn write_description<W: fmt::Write>(f: &mut W, description: &[&str]) -> fmt::Result {
-    for comment in description {
-        writeln!(f, "# {}", comment)?;
-    }
+impl fmt::Display for Description<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for comment in &self.0 {
+            writeln!(f, "# {}", comment)?;
+        }
 
-    Ok(())
+        Ok(())
+    }
 }
 
 impl fmt::Display for Protocol<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write_description(f, &self.description)?;
+        if !self.description.is_empty() {
+            write!(f, "{}", self.description)?;
+        }
         writeln!(f, "{}", self.version)?;
 
         for domain in &self.domains {
@@ -34,7 +38,9 @@ impl fmt::Display for Version {
 
 impl fmt::Display for Domain<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write_description(f, &self.description)?;
+        if !self.description.is_empty() {
+            write!(f, "{}", self.description)?;
+        }
 
         writeln!(
             f,
@@ -45,7 +51,7 @@ impl fmt::Display for Domain<'_> {
                 ""
             },
             if self.deprecated { "deprecated " } else { "" },
-            self.domain,
+            self.name,
         )?;
 
         for depends in &self.dependencies {
@@ -70,7 +76,9 @@ impl fmt::Display for Domain<'_> {
 
 impl fmt::Display for TypeDef<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write_description(f, &self.description)?;
+        if !self.description.is_empty() {
+            write!(f, "{}", self.description)?;
+        }
 
         writeln!(
             f,
@@ -136,7 +144,9 @@ impl fmt::Display for Enum<'_> {
 
 impl fmt::Display for Variant<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write_description(f, &self.description)?;
+        if !self.description.is_empty() {
+            write!(f, "{}", self.description)?;
+        }
         f.write_str(self.name)
     }
 }
@@ -157,7 +167,9 @@ impl fmt::Display for Params<'_> {
 
 impl fmt::Display for Param<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write_description(f, &self.description)?;
+        if !self.description.is_empty() {
+            write!(f, "{}", self.description)?;
+        }
 
         writeln!(
             f,
@@ -183,7 +195,9 @@ impl fmt::Display for Param<'_> {
 
 impl fmt::Display for Command<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write_description(f, &self.description)?;
+        if !self.description.is_empty() {
+            write!(f, "{}", self.description)?;
+        }
 
         writeln!(
             f,
@@ -214,7 +228,9 @@ impl fmt::Display for Command<'_> {
 
 impl fmt::Display for Event<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write_description(f, &self.description)?;
+        if !self.description.is_empty() {
+            write!(f, "{}", self.description)?;
+        }
 
         writeln!(
             f,
@@ -238,7 +254,9 @@ impl fmt::Display for Event<'_> {
 
 impl fmt::Display for Redirect<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write_description(f, &self.description)?;
+        if !self.description.is_empty() {
+            write!(f, "{}", self.description)?;
+        }
         writeln!(f, "redirect {}", self.to)
     }
 }

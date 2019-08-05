@@ -48,7 +48,7 @@ fn eol(input: &str) -> IResult<&str, char> {
 }
 
 fn description(input: &str) -> IResult<&str, Description> {
-    many0(comment)(input)
+    map(many0(comment), Description)(input)
 }
 
 fn comment(input: &str) -> IResult<&str, &str> {
@@ -117,12 +117,7 @@ fn domain(input: &str) -> IResult<&str, Domain> {
                 )),
             )),
         )),
-        |(
-            description,
-            (experimental, deprecated, _domain, _, domain, _eol),
-            dependencies,
-            items,
-        )| {
+        |(description, (experimental, deprecated, _domain, _, name, _eol), dependencies, items)| {
             let (types, commands, events) = items.into_iter().fold(
                 (vec![], vec![], vec![]),
                 |(mut types, mut commands, mut events), item| {
@@ -140,7 +135,7 @@ fn domain(input: &str) -> IResult<&str, Domain> {
                 description,
                 experimental,
                 deprecated,
-                domain,
+                name,
                 dependencies,
                 types,
                 commands,
@@ -474,17 +469,18 @@ experimental domain Accessibility
                         "Copyright 2017 The Chromium Authors. All rights reserved.",
                         "Use of this source code is governed by a BSD-style license that can be",
                         "found in the LICENSE file."
-                    ],
+                    ]
+                    .into(),
                     version: Version { major: 1, minor: 3 },
                     domains: vec![Domain {
-                        description: vec![],
+                        description: Default::default(),
                         experimental: true,
                         deprecated: false,
-                        domain: "Accessibility",
+                        name: "Accessibility",
                         dependencies: vec!["DOM"],
                         types: vec![
                             TypeDef {
-                                description: vec!["Unique accessibility node identifier."],
+                                description: "Unique accessibility node identifier.".into(),
                                 experimental: false,
                                 deprecated: false,
                                 id: "AXNodeId",
@@ -492,35 +488,35 @@ experimental domain Accessibility
                                 item: None,
                             },
                             TypeDef {
-                                description: vec!["Enum of possible property types."],
+                                description: "Enum of possible property types.".into(),
                                 experimental: false,
                                 deprecated: false,
                                 id: "AXValueType",
                                 extends: Type::String,
                                 item: Some(Item::Enum(vec![
                                     Variant {
-                                        description: vec![],
+                                        description: Default::default(),
                                         name: "boolean"
                                     },
                                     Variant {
-                                        description: vec![],
+                                        description: Default::default(),
                                         name: "tristate"
                                     },
                                     Variant {
-                                        description: vec![],
+                                        description: Default::default(),
                                         name: "booleanOrUndefined"
                                     }
                                 ]))
                             },
                             TypeDef {
-                                description: vec!["A single source for a computed AX property."],
+                                description: "A single source for a computed AX property.".into(),
                                 experimental: false,
                                 deprecated: false,
                                 id: "AXValueSource",
                                 extends: Type::Object,
                                 item: Some(Item::Properties(vec![
                                     Param {
-                                        description: vec!["What type of source this is."],
+                                        description: "What type of source this is.".into(),
                                         experimental: false,
                                         deprecated: false,
                                         optional: false,
@@ -528,7 +524,7 @@ experimental domain Accessibility
                                         name: "type"
                                     },
                                     Param {
-                                        description: vec!["The value of this property source."],
+                                        description: "The value of this property source.".into(),
                                         experimental: false,
                                         deprecated: false,
                                         optional: true,
@@ -536,9 +532,8 @@ experimental domain Accessibility
                                         name: "value"
                                     },
                                     Param {
-                                        description: vec![
-                                            "The name of the relevant attribute, if any."
-                                        ],
+                                        description: "The name of the relevant attribute, if any."
+                                            .into(),
                                         experimental: false,
                                         deprecated: false,
                                         optional: true,
@@ -588,10 +583,10 @@ experimental domain Accessibility
             (
                 "",
                 Domain {
-                    description: vec![],
+                    description: Default::default(),
                     experimental: true,
                     deprecated: false,
-                    domain: "Accessibility",
+                    name: "Accessibility",
                     dependencies: vec![],
                     types: vec![],
                     commands: vec![],
@@ -622,14 +617,14 @@ experimental domain Accessibility
             (
                 "",
                 TypeDef {
-                    description: vec![],
+                    description: Default::default(),
                     experimental: false,
                     deprecated: false,
                     id: "AXProperty",
                     extends: Type::Object,
                     item: Some(Item::Properties(vec![
                         Param {
-                            description: vec!["The name of this property."],
+                            description: "The name of this property.".into(),
                             experimental: false,
                             deprecated: false,
                             optional: false,
@@ -637,7 +632,7 @@ experimental domain Accessibility
                             name: "name"
                         },
                         Param {
-                            description: vec!["The value of this property."],
+                            description: "The value of this property.".into(),
                             experimental: false,
                             deprecated: false,
                             optional: false,
@@ -669,34 +664,34 @@ experimental domain Accessibility
             (
                 "",
                 TypeDef {
-                    description: vec!["Enum of possible property sources."],
+                    description: "Enum of possible property sources.".into(),
                     experimental: false,
                     deprecated: false,
                     id: "AXValueSourceType",
                     extends: Type::String,
                     item: Some(Item::Enum(vec![
                         Variant {
-                            description: vec![],
+                            description: Default::default(),
                             name: "attribute"
                         },
                         Variant {
-                            description: vec![],
+                            description: Default::default(),
                             name: "implicit"
                         },
                         Variant {
-                            description: vec![],
+                            description: Default::default(),
                             name: "style"
                         },
                         Variant {
-                            description: vec![],
+                            description: Default::default(),
                             name: "contents"
                         },
                         Variant {
-                            description: vec![],
+                            description: Default::default(),
                             name: "placeholder"
                         },
                         Variant {
-                            description: vec![],
+                            description: Default::default(),
                             name: "relatedElement"
                         }
                     ]))
@@ -718,22 +713,22 @@ experimental domain Accessibility
             (
                 "",
                 TypeDef {
-                    description: vec!["Pseudo element type."],
+                    description: "Pseudo element type.".into(),
                     experimental: false,
                     deprecated: false,
                     id: "PseudoType",
                     extends: Type::String,
                     item: Some(Item::Enum(vec![
                         Variant {
-                            description: vec![],
+                            description: Default::default(),
                             name: "first-line"
                         },
                         Variant {
-                            description: vec![],
+                            description: Default::default(),
                             name: "first-letter"
                         },
                         Variant {
-                            description: vec![],
+                            description: Default::default(),
                             name: "before"
                         }
                     ]))
@@ -765,7 +760,7 @@ experimental domain Accessibility
                 "",
                 Item::Properties(vec![
                     Param {
-                        description: vec!["The type of this value."],
+                        description: "The type of this value.".into(),
                         experimental: false,
                         deprecated: false,
                         optional: false,
@@ -773,7 +768,7 @@ experimental domain Accessibility
                         name: "type"
                     },
                     Param {
-                        description: vec!["The computed value of this property."],
+                        description: "The computed value of this property.".into(),
                         experimental: false,
                         deprecated: false,
                         optional: true,
@@ -781,7 +776,7 @@ experimental domain Accessibility
                         name: "value"
                     },
                     Param {
-                        description: vec!["One or more related nodes, if applicable."],
+                        description: "One or more related nodes, if applicable.".into(),
                         experimental: false,
                         deprecated: false,
                         optional: true,
@@ -789,7 +784,7 @@ experimental domain Accessibility
                         name: "relatedNodes"
                     },
                     Param {
-                        description: vec!["Animation type of `Animation`."],
+                        description: "Animation type of `Animation`.".into(),
                         experimental: false,
                         deprecated: false,
                         optional: false,
@@ -822,13 +817,13 @@ experimental domain Accessibility
             (
                 "",
                 Command {
-                    description: vec!["Returns the DER-encoded certificate."],
+                    description: "Returns the DER-encoded certificate.".into(),
                     experimental: true,
                     deprecated: false,
                     name: "getCertificate",
                     redirect: None,
                     parameters: vec![Param {
-                        description: vec!["Origin to get certificate for."],
+                        description: "Origin to get certificate for.".into(),
                         experimental: false,
                         deprecated: false,
                         optional: false,
@@ -836,7 +831,7 @@ experimental domain Accessibility
                         name: "origin"
                     }],
                     returns: vec![Param {
-                        description: vec![],
+                        description: Default::default(),
                         experimental: false,
                         deprecated: false,
                         optional: false,
@@ -859,12 +854,12 @@ experimental domain Accessibility
             (
                 "",
                 Command {
-                    description: vec!["Hides any highlight."],
+                    description: "Hides any highlight.".into(),
                     experimental: false,
                     deprecated: false,
                     name: "hideHighlight",
                     redirect: Some(Redirect {
-                        description: vec!["Use 'Overlay.hideHighlight' instead"],
+                        description: "Use 'Overlay.hideHighlight' instead".into(),
                         to: "Overlay"
                     }),
                     parameters: vec![],
@@ -887,7 +882,7 @@ experimental domain Accessibility
             (
                 "",
                 Event {
-                    description: vec!["Notification sent after the virtual time has advanced."],
+                    description: "Notification sent after the virtual time has advanced.".into(),
                     experimental: true,
                     deprecated: false,
                     name: "virtualTimeAdvanced",
@@ -896,7 +891,7 @@ experimental domain Accessibility
                             description: vec![
                                 "The amount of virtual time that has elapsed in milliseconds since virtual time was first",
                                 "enabled."
-                            ],
+                            ].into(),
                             experimental: false,
                             deprecated: false,
                             optional: false,
@@ -921,7 +916,7 @@ experimental domain Accessibility
             (
                 "",
                 Redirect {
-                    description: vec!["Use 'Emulation.clearGeolocationOverride' instead"],
+                    description: "Use 'Emulation.clearGeolocationOverride' instead".into(),
                     to: "Emulation"
                 }
             )
