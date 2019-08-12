@@ -85,6 +85,9 @@ impl Serialize for Type<'_> {
             Type::Any => {
                 map.serialize_entry("type", "any")?;
             }
+            Type::Binary => {
+                map.serialize_entry("type", "binary")?;
+            }
             Type::Enum(variants) => {
                 map.serialize_entry("type", "string")?;
                 map.serialize_entry(

@@ -221,6 +221,7 @@ impl Type<'_> {
                 "string" => Type::String,
                 "object" => Type::Object,
                 "any" => Type::Any,
+                "binary" => Type::Binary,
                 _ => Type::Ref(ty),
             }
         }

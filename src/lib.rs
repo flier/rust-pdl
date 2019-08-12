@@ -132,6 +132,7 @@ pub enum Type<'a> {
     String,
     Object,
     Any,
+    Binary,
     Enum(Vec<Variant<'a>>),
     ArrayOf(Box<Type<'a>>),
     Ref(&'a str),

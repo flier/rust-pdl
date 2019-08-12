@@ -111,6 +111,7 @@ impl fmt::Display for Type<'_> {
             Type::String => f.write_str("string"),
             Type::Object => f.write_str("object"),
             Type::Any => f.write_str("any"),
+            Type::Binary => f.write_str("binary"),
             Type::ArrayOf(ty) => write!(f, "array of {}", ty),
             Type::Ref(id) => f.write_str(id),
         }
