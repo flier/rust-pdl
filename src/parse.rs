@@ -248,7 +248,7 @@ fn variant(input: &str) -> IResult<&str, Variant> {
             tuple((
                 indent,
                 verify(take_while(|c: char| !c.is_whitespace()), |s: &str| {
-                    !s.is_empty()
+                    !s.is_empty() && s != "returns"
                 }),
                 eol,
             )),
