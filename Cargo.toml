@@ -1,6 +1,6 @@
 [package]
 name = "pdl"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Flier Lu <flier.lu@gmail.com>"]
 description = "Parse PDL file for the Chrome DevTools Protocol"
 homepage = "https://github.com/flier/rust-pdl"
